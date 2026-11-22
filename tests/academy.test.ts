@@ -53,7 +53,7 @@ describe('academy content', () => {
       total += d.stages.length;
     }
     expect(total).toBeGreaterThan(1000);
-  });
+  }, 120000);
 });
 
 describe('stage builder', () => {

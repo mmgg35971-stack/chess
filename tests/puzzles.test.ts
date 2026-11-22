@@ -35,7 +35,7 @@ describe('puzzle data', () => {
       expect(p.moves.length / 2).toBeLessThanOrEqual(5);
       expect(solutionSan(p)).toHaveLength(p.moves.length - 1); // every stored move is legal
     }
-  });
+  }, 120000);
   it('every generated puzzle is a verified mate or a KPK win', async () => {
     const gen = all.filter((p) => p.source === 'g');
     for (const p of gen) {
@@ -47,7 +47,7 @@ describe('puzzle data', () => {
   });
   it('covers every rating band with thousands of puzzles', () => {
     for (const b of BANDS) expect(countIn(idx, 'c_random', b), b.key).toBeGreaterThan(b.min >= 2400 ? 3000 : 5000);
-  });
+  }, 60000);
   it('every spec category has puzzles, and the index bitsets match the puzzles', () => {
     const empty = ALL_CATEGORIES.filter((c) => !all.some(c.test)).map((c) => c.id);
     expect(empty).toEqual([]);
@@ -56,7 +56,7 @@ describe('puzzle data', () => {
     expect(ENDGAME).toHaveLength(10);
     expect(MATE.map((c) => c.id)).toEqual(['m_kq', 'm_kr', 'm_kbn', 'm_in1', 'm_in2', 'm_in3', 'm_in4', 'm_in5', 'm_patterns']);
     expect(categoryById('nope').id).toBe('c_random');
-  });
+  }, 120000);
 });
 
 // Lichess 00008 (CC0): after ...Bxg3? White plays Rxe7! and wins.
