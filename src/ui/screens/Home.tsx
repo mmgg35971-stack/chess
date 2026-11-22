@@ -6,16 +6,20 @@ import type { Activity } from '../../lib/storage/db';
 import { fmtDate, fmtDateTime, fmtDuration } from '../format';
 import { Icon } from '../icons';
 import { Avatar } from './Settings';
+import { getPuzzleRating, type PuzzleRatingState } from '../../lib/puzzles/progress';
+import { PROVISIONAL_RD } from '../../lib/puzzles/glicko2';
 
 export function Home() {
   const { t, profile, go, settings, dataVersion } = useApp();
   const [stats, setStats] = useState<PlayStats | null>(null);
   const [recent, setRecent] = useState<Activity[]>([]);
   const [hasSession, setHasSession] = useState(false);
+  const [pz, setPz] = useState<PuzzleRatingState | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [games, act, rec, sess] = await Promise.all([listGames(), allActivity(), listActivity(8), loadSession()]);
+      const [games, act, rec, sess, pr] = await Promise.all([listGames(), allActivity(), listActivity(8), loadSession(), getPuzzleRating()]);
+      setPz(pr);
       setStats(playStats(games, act));
       setRecent(rec);
       setHasSession(!!sess);
@@ -41,7 +45,7 @@ export function Home() {
           <Stat label={t('winRate')} value={stats.winRate === null ? '—' : `${stats.winRate}%`} />
           <Stat label={t('trainingTime')} value={fmtDuration(stats.trainingMs, t)} />
           <Stat label={t('playRating')} value={t('notYet')} small />
-          <Stat label={t('puzzleRating')} value={t('notYet')} small />
+          <Stat label={t('puzzleRating')} value={pz && pz.games > 0 ? `${Math.round(pz.rating)}${pz.rd > PROVISIONAL_RD ? '?' : ''}` : t('notYet')} small={!(pz && pz.games > 0)} />
         </div>
       )}
 

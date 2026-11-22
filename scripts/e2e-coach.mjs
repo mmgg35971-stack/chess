@@ -88,13 +88,17 @@ await step('coach card: Tal facts, last documented rating, peak, death date, dis
   await page.getByTestId('coach-tal').click();
   const txt = await page.locator('.screen').textContent();
   for (const s of ['2525', '2705', '1936', '1992', 'محاكاة', 'آخر تصنيف موثق', 'ريغا', 'مولّدة بالذكاء الاصطناعي']) expectTrue(txt.includes(s), 'missing ' + s);
+  const real = await page.getByTestId('real-games').textContent();
+  expectTrue(real.includes('150') && real.includes('kinairi/chess-data'), 'real-games card: ' + real.slice(0, 200));
+  const opts = await page.getByTestId('coach-level').locator('option').allTextContents();
+  expectTrue(opts.length === 7 && opts[0].includes('700') && opts[6].includes('أقصى'), 'levels: ' + opts.join(' | '));
   await page.screenshot({ path: 'test-shots/11-coach-tal.png', fullPage: true });
 });
 
 let replyMs = 0;
 await step('educational game: coach takes 2–5 s, reviews my move and explains its own', async () => {
   await page.getByRole('radio', { name: 'الأبيض' }).click();
-  await page.getByRole('radio', { name: 'مبتدئ' }).click();
+  await page.getByTestId('coach-level').selectOption('1');
   await page.getByRole('radio', { name: 'تعليمي' }).click();
   await page.getByTestId('start-coach').click();
   await page.locator('svg.board').waitFor();

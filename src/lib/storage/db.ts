@@ -70,6 +70,24 @@ export interface KV {
   value: unknown;
 }
 
+/** One attempt at a puzzle (spec 7.7). `result` null = skipped without a rated result. */
+export interface PuzzleAttempt {
+  id?: number;
+  puzzleId: string;
+  at: number;
+  result: 0 | 1 | null;
+  /** solved in the end (possibly after a mistake/hint) */
+  completed: boolean;
+  hints: number;
+  timeMs: number;
+  category: string;
+  themes: string[];
+  puzzleRating: number;
+  ratingBefore: number;
+  ratingAfter: number;
+  rdAfter: number;
+}
+
 export class AcademyDB extends Dexie {
   profile!: Table<Profile, string>;
   games!: Table<SavedGame, number>;
@@ -77,6 +95,7 @@ export class AcademyDB extends Dexie {
   session!: Table<Session, string>;
   kv!: Table<KV, string>;
   analyses!: Table<StoredAnalysis, number>;
+  puzzleAttempts!: Table<PuzzleAttempt, number>;
 
   constructor(name = 'chess-academy') {
     super(name);
@@ -88,11 +107,12 @@ export class AcademyDB extends Dexie {
       kv: 'key',
     });
     this.version(2).stores({ analyses: 'gameId' });
+    this.version(3).stores({ puzzleAttempts: '++id, at, puzzleId, category' });
   }
 }
 
-export const SCHEMA_VERSION = 2;
-export const TABLES = ['profile', 'games', 'activity', 'session', 'kv', 'analyses'] as const;
+export const SCHEMA_VERSION = 3;
+export const TABLES = ['profile', 'games', 'activity', 'session', 'kv', 'analyses', 'puzzleAttempts'] as const;
 
 let instance: AcademyDB | null = null;
 export function db(): AcademyDB {

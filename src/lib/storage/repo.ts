@@ -1,3 +1,4 @@
+import { Chess } from 'chess.js';
 import { db, SCHEMA_VERSION, TABLES, type Profile, type SavedGame, type Session, type StoredAnalysis } from './db';
 import { importPgn } from '../chess/pgn';
 
@@ -33,6 +34,30 @@ export const getAnalysis = (gameId: number) => db().analyses.get(gameId);
 export const saveAnalysis = (a: StoredAnalysis) => db().analyses.put(a);
 export async function gamesVsCoach(coachId: string) {
   return (await db().games.toArray()).filter((g) => g.opponent.kind === 'coach' && g.opponent.id === coachId).length;
+}
+
+/**
+ * Moves the coach played in the user's last `n` games against it, as "positionHash|san".
+ * Used to steer the coach away from repeating the exact same game.
+ */
+export async function recentCoachMoves(coachId: string, n = 3): Promise<Set<string>> {
+  const games = (await db().games.toArray())
+    .filter((g) => g.opponent.kind === 'coach' && g.opponent.id === coachId)
+    .sort((a, b) => b.endedAt - a.endedAt)
+    .slice(0, n);
+  const out = new Set<string>();
+  for (const g of games) {
+    const c = new Chess();
+    try { c.loadPgn(g.pgn); } catch { continue; }
+    const coachColor = g.userColor === 'w' ? 'b' : 'w';
+    const sans = c.history();
+    const r = new Chess();
+    for (const san of sans) {
+      if (r.turn() === coachColor) out.add(r.hash() + '|' + san);
+      try { r.move(san); } catch { break; }
+    }
+  }
+  return out;
 }
 
 export const listGames = () => db().games.orderBy('endedAt').reverse().toArray();

@@ -7,6 +7,8 @@ export type Route =
   | { name: 'home' }
   | { name: 'coaches' }
   | { name: 'puzzles' }
+  | { name: 'puzzle'; cat: string }
+  | { name: 'puzzleStats' }
   | { name: 'openings' }
   | { name: 'settings' }
   | { name: 'play'; resume?: boolean }

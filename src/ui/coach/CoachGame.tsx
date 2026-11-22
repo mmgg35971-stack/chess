@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chess, type Move, type Square } from 'chess.js';
 import { useApp } from '../AppContext';
 import { Board, type Arrow } from '../board/Board';
@@ -6,8 +6,8 @@ import { MoveList, TIME_CONTROLS } from '../screens/Play';
 import { EvalBar } from '../analysis/EvalBar';
 import { CoachPortrait } from './Emblem';
 import type { CoachSetup } from './CoachScreens';
-import { coachById, coachLevel } from '../../lib/coach/coaches';
-import { bookMove, chooseCoachMove, type StyleTag } from '../../lib/coach/style';
+import { coachById, coachLevel, coachTree, withMeasuredStyle } from '../../lib/coach/coaches';
+import { bookMove, chooseHumanLike, realBookMove, type StyleTag } from '../../lib/coach/style';
 import { coachMoveComment, planAdvice } from '../../lib/coach/voice';
 import { getEngine, type SearchResult } from '../../lib/engine/engine';
 import { engineThinkMs } from '../../lib/engine/timing';
@@ -23,7 +23,7 @@ import {
   tryMove, uciToMove, type Color, type GameOutcome,
 } from '../../lib/chess/game';
 import { buildPgn, pgnDate } from '../../lib/chess/pgn';
-import { gamesVsCoach, getSetting, saveAnalysis, saveFinishedGame, setSetting } from '../../lib/storage/repo';
+import { gamesVsCoach, getSetting, recentCoachMoves, saveAnalysis, saveFinishedGame, setSetting } from '../../lib/storage/repo';
 import { playMoveSound } from '../../lib/sound';
 import { fmtClock, fmtDuration } from '../format';
 
@@ -75,7 +75,17 @@ function ctxFor(sans: string[], ply: number, evals: MoveEval[], rating = 1500) {
 export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
   const { t, settings, profile, go, bumpData } = useApp();
   const L = settings.lang;
-  const coach = coachById(id)!;
+  const coach = useMemo(() => withMeasuredStyle(coachById(id)!), [id]);
+  /** the coach's real opening tree + its moves from the last games vs this user (anti-repetition) */
+  const repertoire = useRef<{ tree?: Record<string, [string, number][]>; avoid: Set<string> }>({ avoid: new Set() });
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const [tree, avoid] = await Promise.all([coachTree(id).catch(() => undefined), recentCoachMoves(id, 3)]);
+      if (live) repertoire.current = { tree, avoid };
+    })();
+    return () => { live = false; };
+  }, [id]);
   const th = STRICTNESS[settings.strictness];
 
   const chess = useRef(new Chess());
@@ -210,17 +220,28 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
     const fenNow = chess.current.fen();
     const t0 = Date.now();
     const engine = getEngine();
-    let lines = analysis;
+    // Each level searches with its own depth/width (that is what the levels were calibrated with);
+    // the full-strength level reuses the deep review search when there is one.
+    let lines = lvl.level === 7 ? analysis : null;
     if (!lines) {
       await engine.setOption('Skill Level', 20);
-      lines = (await engine.search(fenNow, { depth: Math.max(lvl.depth, 8), movetime: 2500 }, { multipv: 5 })).lines;
+      const legal = chess.current.moves().length;
+      const multipv = Math.min(lvl.multipv === 0 ? 40 : lvl.multipv, legal);
+      lines = (await engine.search(fenNow, { depth: lvl.depth }, { multipv })).lines;
       if (myGen !== gen.current) return;
     }
     const coachColor: Color = s.userColor === 'w' ? 'b' : 'w';
     let uci: string | null = null;
     let tag: StyleTag | 'book' = 'best';
     let pvAfter: string[] = [];
-    const book = bookMove(coach, chess.current.history(), coachColor, s.seed);
+    const rep = repertoire.current;
+    // 1) a move the real player chose in this exact position (weighted by how often), else
+    // 2) the documented repertoire line, else 3) a human-like engine choice in the coach's style.
+    // weaker levels leave the memorised repertoire sooner (a beginner does not know 12 moves of theory)
+    const bookLimit = [8, 12, 16, 20, 24, 24, 24][lvl.level - 1];
+    const inBook = chess.current.history().length < bookLimit;
+    const book = !inBook ? null : realBookMove(rep.tree, fenNow, Math.random, rep.avoid)
+      ?? (rep.tree ? null : bookMove(coach, chess.current.history(), coachColor, s.seed));
     if (book) {
       try {
         const m = new Chess(fenNow).move(book);
@@ -228,7 +249,7 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
       } catch { /* not legal here */ }
     }
     if (!uci) {
-      const choice = chooseCoachMove(fenNow, lines, coach, lvl.marginCp + coach.styleMarginCp);
+      const choice = chooseHumanLike(fenNow, lines, coach, lvl, Math.random, rep.avoid);
       if (!choice) return;
       uci = choice.uci; tag = choice.tag; pvAfter = choice.pv.slice(1);
     }

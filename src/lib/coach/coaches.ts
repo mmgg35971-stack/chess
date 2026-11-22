@@ -1,3 +1,4 @@
+import statsJson from '../../data/coach-stats.json';
 /**
  * Virtual coaches. Biographical data was checked on 2026-11-22 against the
  * sources listed per coach (see also DATA_SOURCES.md). Ratings are FIDE
@@ -434,18 +435,65 @@ export function coachById(id: string) {
   return COACHES.find((c) => c.id === id);
 }
 
-/** Difficulty for coaches. Lower levels search shallower and accept bigger concessions. */
+/**
+ * Difficulty for coaches. Each level is a human-like player: it searches to `depth`, looks at
+ * `multipv` candidate moves (0 = every legal move) and picks one at random with probability
+ * ∝ exp(score / temperature), so weaker levels make more and bigger mistakes.
+ * The numbers were tuned by self-play (scripts/coach-data/calibrate-levels.ts) so the average
+ * centipawn loss of each level matches real Lichess players of `targetRating`
+ * (see DATA_SOURCES.md). `targetRating` is approximate, not a promise.
+ * Measured median ACPL (self-play, 10 game sides per level, depth-10 re-analysis):
+ *   L1 150 · L2 109 · L3 73 · L4 63 · L5 35–47 · L6 28 · L7 6.
+ * Lichess players (our sample): ~950 → 100, ~1250 → 77, ~1550 → 67, ~1850 → 55, ~2200 → 45.
+ * At L5–L6 the depth-10 yardstick under-measures errors of a similarly deep search, so their
+ * true ACPL is higher than shown; treat 1900/2200 as rough.
+ */
 export interface CoachLevel {
   level: number;
+  targetRating: number;
   depth: number;
-  marginCp: number;
+  multipv: number;
+  temperature: number;
+  blindness: number;
   label: Bi;
 }
 export const COACH_LEVELS: CoachLevel[] = [
-  { level: 1, depth: 5, marginCp: 220, label: { ar: 'مبتدئ', en: 'Beginner' } },
-  { level: 2, depth: 7, marginCp: 140, label: { ar: 'هاوٍ', en: 'Casual' } },
-  { level: 3, depth: 9, marginCp: 80, label: { ar: 'متوسط', en: 'Club' } },
-  { level: 4, depth: 11, marginCp: 45, label: { ar: 'متقدم', en: 'Advanced' } },
-  { level: 5, depth: 13, marginCp: 0, label: { ar: 'أقصى قوة', en: 'Full strength' } },
+  { level: 1, targetRating: 700, depth: 2, multipv: 0, temperature: 150, blindness: 0.1, label: { ar: 'مبتدئ', en: 'Beginner' } },
+  { level: 2, targetRating: 1000, depth: 3, multipv: 0, temperature: 110, blindness: 0.08, label: { ar: 'مبتدئ+', en: 'Novice' } },
+  { level: 3, targetRating: 1300, depth: 4, multipv: 16, temperature: 95, blindness: 0.03, label: { ar: 'هاوٍ', en: 'Casual' } },
+  { level: 4, targetRating: 1600, depth: 6, multipv: 10, temperature: 75, blindness: 0.01, label: { ar: 'نادي', en: 'Club' } },
+  { level: 5, targetRating: 1900, depth: 8, multipv: 8, temperature: 70, blindness: 0, label: { ar: 'متقدم', en: 'Advanced' } },
+  { level: 6, targetRating: 2200, depth: 10, multipv: 8, temperature: 50, blindness: 0, label: { ar: 'خبير', en: 'Expert' } },
+  { level: 7, targetRating: 0, depth: 13, multipv: 4, temperature: 6, blindness: 0, label: { ar: 'أقصى قوة', en: 'Full strength' } },
 ];
-export const coachLevel = (n: number) => COACH_LEVELS[Math.min(Math.max(n, 1), 5) - 1];
+export const coachLevel = (n: number) => COACH_LEVELS[Math.min(Math.max(Math.round(n), 1), COACH_LEVELS.length) - 1];
+
+// ---- measured data from the coaches' real games (scripts/coach-data/build-coach-profiles.ts) ----
+export interface CoachGameStats {
+  games: number; analysedMoves: number; from: string | null; to: string | null;
+  score: { win: number; draw: number; loss: number };
+  acpl: number; bestMoveRate: number; captureRate: number; checkRate: number;
+  sacrificePer100: number; soundSacrificePer100: number; kingPressure: number; queenTradeRate: number;
+  avgMoves: number; topOpenings: { name: string; n: number }[];
+}
+type StatsFile = { source: string; coaches: Record<string, { stats: CoachGameStats; styleFactor: Partial<Record<keyof StyleWeights, number>> }> };
+const STATS = statsJson as StatsFile;
+export const coachGameStats = (id: string): CoachGameStats | null => STATS.coaches[id]?.stats ?? null;
+export const COACH_DATA_SOURCE = STATS.source;
+
+/** The coach with its style weights scaled by what its real games show (sacrifices, king pressure, checks, …). */
+export function withMeasuredStyle(c: CoachProfile): CoachProfile {
+  const f = STATS.coaches[c.id]?.styleFactor;
+  if (!f) return c;
+  const w = { ...c.weights };
+  for (const k of Object.keys(f) as (keyof StyleWeights)[]) w[k] = +(w[k] * (f[k] ?? 1)).toFixed(2);
+  return { ...c, weights: w };
+}
+
+type TreeFile = { coaches: Record<string, Record<string, [string, number][]>> };
+let trees: Promise<TreeFile> | null = null;
+/** Opening moves the coach really played (lazy: the file is large). */
+export async function coachTree(id: string): Promise<Record<string, [string, number][]> | undefined> {
+  trees ??= import('../../data/coach-trees.json').then((m) => (m.default ?? m) as unknown as TreeFile);
+  return (await trees).coaches[id];
+}

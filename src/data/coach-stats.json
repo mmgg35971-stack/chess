@@ -1,0 +1,390 @@
+{
+ "source": "kinairi/chess-data (GPL-3.0) data/players/*.pgn; classical games only; analysed with Stockfish 19 lite, depth 10, MultiPV 2",
+ "coaches": {
+  "carlsen": {
+   "stats": {
+    "games": 150,
+    "analysedMoves": 5973,
+    "from": "2018.06",
+    "to": "2020.10",
+    "score": {
+     "win": 46,
+     "draw": 94,
+     "loss": 10
+    },
+    "acpl": 12.6,
+    "bestMoveRate": 0.59,
+    "captureRate": 0.22,
+    "checkRate": 0.061,
+    "sacrificePer100": 0.59,
+    "soundSacrificePer100": 0.5,
+    "kingPressure": 0.251,
+    "queenTradeRate": 0.353,
+    "avgMoves": 48.6,
+    "topOpenings": [
+     {
+      "name": "Sicilian Defense: Nyezhmetdinov-Rossolimo Attack, Fianchetto Variation",
+      "n": 11
+     },
+     {
+      "name": "Sicilian Defense: Lasker-Pelikan Variation",
+      "n": 8
+     },
+     {
+      "name": "Queen's Gambit Accepted",
+      "n": 5
+     },
+     {
+      "name": "Ruy Lopez: Closed, Martinez Variation",
+      "n": 4
+     },
+     {
+      "name": "Grünfeld Defense: Exchange Variation",
+      "n": 4
+     },
+     {
+      "name": "Sicilian Defense: Najdorf Variation",
+      "n": 4
+     }
+    ]
+   },
+   "styleFactor": {
+    "sacrifice": 0.86,
+    "kingAttack": 1,
+    "check": 0.99,
+    "capture": 0.99,
+    "simplify": 1.09
+   }
+  },
+  "nakamura": {
+   "stats": {
+    "games": 150,
+    "analysedMoves": 5224,
+    "from": "2017.11",
+    "to": "2019.11",
+    "score": {
+     "win": 30,
+     "draw": 104,
+     "loss": 16
+    },
+    "acpl": 13.8,
+    "bestMoveRate": 0.551,
+    "captureRate": 0.219,
+    "checkRate": 0.065,
+    "sacrificePer100": 0.56,
+    "soundSacrificePer100": 0.4,
+    "kingPressure": 0.237,
+    "queenTradeRate": 0.307,
+    "avgMoves": 43.6,
+    "topOpenings": [
+     {
+      "name": "Queen's Gambit Declined: Harrwitz Attack, Main Line",
+      "n": 6
+     },
+     {
+      "name": "Queen's Gambit Declined: Harrwitz Attack",
+      "n": 6
+     },
+     {
+      "name": "Ruy Lopez: Berlin Defense, l'Hermet Variation, Berlin Wall Defense",
+      "n": 5
+     },
+     {
+      "name": "Queen's Gambit Declined: Harrwitz Attack, Fianchetto Defense",
+      "n": 5
+     },
+     {
+      "name": "Nimzo-Indian Defense: Classical Variation",
+      "n": 5
+     },
+     {
+      "name": "Ruy Lopez: Berlin Defense, Anti-Berlin Variation",
+      "n": 5
+     }
+    ]
+   },
+   "styleFactor": {
+    "sacrifice": 0.77,
+    "kingAttack": 0.97,
+    "check": 1.02,
+    "capture": 0.98,
+    "simplify": 1.02
+   }
+  },
+  "caruana": {
+   "stats": {
+    "games": 150,
+    "analysedMoves": 5799,
+    "from": "2018.04",
+    "to": "2020.10",
+    "score": {
+     "win": 41,
+     "draw": 93,
+     "loss": 16
+    },
+    "acpl": 15.3,
+    "bestMoveRate": 0.575,
+    "captureRate": 0.222,
+    "checkRate": 0.064,
+    "sacrificePer100": 0.86,
+    "soundSacrificePer100": 0.74,
+    "kingPressure": 0.263,
+    "queenTradeRate": 0.3,
+    "avgMoves": 47.6,
+    "topOpenings": [
+     {
+      "name": "Petrov's Defense: Nimzowitsch Attack",
+      "n": 9
+     },
+     {
+      "name": "Ruy Lopez: Berlin Defense, Anti-Berlin Variation",
+      "n": 7
+     },
+     {
+      "name": "Sicilian Defense: Nyezhmetdinov-Rossolimo Attack, Fianchetto Variation",
+      "n": 6
+     },
+     {
+      "name": "Queen's Gambit Declined: Harrwitz Attack, Fianchetto Defense",
+      "n": 6
+     },
+     {
+      "name": "Sicilian Defense: Lasker-Pelikan Variation",
+      "n": 6
+     },
+     {
+      "name": "Nimzo-Indian Defense: Classical Variation",
+      "n": 4
+     }
+    ]
+   },
+   "styleFactor": {
+    "sacrifice": 1.05,
+    "kingAttack": 1.02,
+    "check": 1.01,
+    "capture": 0.99,
+    "simplify": 1
+   }
+  },
+  "firouzja": {
+   "stats": {
+    "games": 51,
+    "analysedMoves": 1861,
+    "from": "2014.12",
+    "to": "2020.10",
+    "score": {
+     "win": 6,
+     "draw": 27,
+     "loss": 18
+    },
+    "acpl": 18.1,
+    "bestMoveRate": 0.552,
+    "captureRate": 0.214,
+    "checkRate": 0.049,
+    "sacrificePer100": 0.91,
+    "soundSacrificePer100": 0.48,
+    "kingPressure": 0.221,
+    "queenTradeRate": 0.255,
+    "avgMoves": 44.8,
+    "topOpenings": [
+     {
+      "name": "Zukertort Opening",
+      "n": 2
+     },
+     {
+      "name": "Italian Game: Classical Variation, Giuoco Pianissimo",
+      "n": 2
+     },
+     {
+      "name": "Nimzo-Indian Defense: Kmoch Variation",
+      "n": 2
+     },
+     {
+      "name": "London System",
+      "n": 2
+     },
+     {
+      "name": "Neo-Grünfeld Defense: Ultra-Delayed Exchange Variation",
+      "n": 1
+     },
+     {
+      "name": "King's Indian Attack: Sicilian Variation",
+      "n": 1
+     }
+    ]
+   },
+   "styleFactor": {
+    "sacrifice": 0.85,
+    "kingAttack": 0.93,
+    "check": 0.88,
+    "capture": 0.97,
+    "simplify": 0.93
+   }
+  },
+  "tal": {
+   "stats": {
+    "games": 150,
+    "analysedMoves": 3725,
+    "from": "1989",
+    "to": "1992",
+    "score": {
+     "win": 51,
+     "draw": 80,
+     "loss": 19
+    },
+    "acpl": 22.9,
+    "bestMoveRate": 0.558,
+    "captureRate": 0.249,
+    "checkRate": 0.056,
+    "sacrificePer100": 1.34,
+    "soundSacrificePer100": 0.86,
+    "kingPressure": 0.255,
+    "queenTradeRate": 0.247,
+    "avgMoves": 32.8,
+    "topOpenings": [
+     {
+      "name": "English Opening: Symmetrical Variation",
+      "n": 5
+     },
+     {
+      "name": "Rat Defense: English Rat",
+      "n": 3
+     },
+     {
+      "name": "Ruy Lopez: Morphy Defense, Arkhangelsk Variation",
+      "n": 2
+     },
+     {
+      "name": "King's Indian Attack: Symmetrical Defense",
+      "n": 2
+     },
+     {
+      "name": "Catalan Opening: Open Defense, Classical Line",
+      "n": 2
+     },
+     {
+      "name": "Sicilian Defense: Najdorf Variation",
+      "n": 2
+     }
+    ]
+   },
+   "styleFactor": {
+    "sacrifice": 1.13,
+    "kingAttack": 1,
+    "check": 0.95,
+    "capture": 1.05,
+    "simplify": 0.91
+   }
+  },
+  "fischer": {
+   "stats": {
+    "games": 150,
+    "analysedMoves": 5482,
+    "from": "1968",
+    "to": "1992",
+    "score": {
+     "win": 86,
+     "draw": 54,
+     "loss": 10
+    },
+    "acpl": 16.9,
+    "bestMoveRate": 0.603,
+    "captureRate": 0.228,
+    "checkRate": 0.066,
+    "sacrificePer100": 0.97,
+    "soundSacrificePer100": 0.73,
+    "kingPressure": 0.278,
+    "queenTradeRate": 0.34,
+    "avgMoves": 44.7,
+    "topOpenings": [
+     {
+      "name": "Sicilian Defense: Closed",
+      "n": 5
+     },
+     {
+      "name": "Sicilian Defense: Sozin Attack, Leonhardt Variation",
+      "n": 5
+     },
+     {
+      "name": "Ruy Lopez: Exchange Variation, Gligoric Variation",
+      "n": 5
+     },
+     {
+      "name": "Queen's Gambit Accepted: Classical Defense, Main Line",
+      "n": 4
+     },
+     {
+      "name": "Sicilian Defense: Taimanov Variation, Szén Variation",
+      "n": 4
+     },
+     {
+      "name": "Caro-Kann Defense: Breyer Variation",
+      "n": 4
+     }
+    ]
+   },
+   "styleFactor": {
+    "sacrifice": 1.04,
+    "kingAttack": 1.05,
+    "check": 1.03,
+    "capture": 1,
+    "simplify": 1.07
+   }
+  },
+  "kasparov": {
+   "stats": {
+    "games": 150,
+    "analysedMoves": 4728,
+    "from": "2001.03",
+    "to": "2005.03",
+    "score": {
+     "win": 54,
+     "draw": 86,
+     "loss": 10
+    },
+    "acpl": 16.2,
+    "bestMoveRate": 0.594,
+    "captureRate": 0.235,
+    "checkRate": 0.077,
+    "sacrificePer100": 1.16,
+    "soundSacrificePer100": 0.97,
+    "kingPressure": 0.267,
+    "queenTradeRate": 0.28,
+    "avgMoves": 39.5,
+    "topOpenings": [
+     {
+      "name": "Sicilian Defense: Najdorf Variation, English Attack",
+      "n": 8
+     },
+     {
+      "name": "Ruy Lopez: Closed",
+      "n": 5
+     },
+     {
+      "name": "Petrov's Defense: Classical Attack, Chigorin Variation, Main Line",
+      "n": 4
+     },
+     {
+      "name": "Slav Defense: Chebanenko Variation",
+      "n": 4
+     },
+     {
+      "name": "Sicilian Defense: Closed, Anti-Sveshnikov Variation, Kharlov-Kramnik Line",
+      "n": 3
+     },
+     {
+      "name": "Sicilian Defense: Scheveningen Variation, English Attack, with f3",
+      "n": 3
+     }
+    ]
+   },
+   "styleFactor": {
+    "sacrifice": 1.2,
+    "kingAttack": 1.03,
+    "check": 1.11,
+    "capture": 1.02,
+    "simplify": 0.97
+   }
+  }
+ }
+}

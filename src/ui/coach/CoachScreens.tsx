@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../AppContext';
-import { COACHES, COACH_LEVELS, coachById, type CoachProfile } from '../../lib/coach/coaches';
+import { COACHES, COACH_LEVELS, coachById, coachGameStats, type CoachProfile } from '../../lib/coach/coaches';
 import { CoachPortrait } from './Emblem';
 import { Icon } from '../icons';
 import { Segmented, TIME_CONTROLS } from '../screens/Play';
@@ -116,6 +116,8 @@ export function CoachDetail({ id }: { id: string }) {
         <div className="row gap wrap">{coach.strengths.map((s, i) => <span key={i} className="pill">{s[L]}</span>)}</div>
       </div>
 
+      <RealGamesCard id={coach.id} />
+
       <div className="card">
         <h2>{t('playCoach')}</h2>
         <div className="field"><span>{t('yourColor')}</span>
@@ -123,8 +125,14 @@ export function CoachDetail({ id }: { id: string }) {
             options={[['w', t('white')], ['b', t('black')], ['random', t('random')]]} />
         </div>
         <div className="field"><span>{t('difficulty')}</span>
-          <Segmented value={String(setup.level)} onChange={(v) => setSetup({ ...setup, level: Number(v) })}
-            options={COACH_LEVELS.map((l) => [String(l.level), l.label[L]] as [string, string])} />
+          <select value={String(setup.level)} onChange={(e) => setSetup({ ...setup, level: Number(e.target.value) })} data-testid="coach-level" aria-label={t('difficulty')}>
+            {COACH_LEVELS.map((l) => (
+              <option key={l.level} value={l.level}>
+                {l.level} · {l.label[L]}{l.targetRating ? ` (${t('levelApprox')} ${l.targetRating})` : ''}
+              </option>
+            ))}
+          </select>
+          <span className="muted small">{t('coachLevelNote')}</span>
         </div>
         <div className="field"><span>{t('mode')}</span>
           <Segmented value={setup.mode} onChange={(v) => setSetup({ ...setup, mode: v as GameMode })}
@@ -146,6 +154,36 @@ export function CoachDetail({ id }: { id: string }) {
         <p className="muted small">{t('simulationNote')}</p>
         <div className="muted small" dir="ltr">{t('sources')}: {coach.sources.join(' · ')}</div>
       </div>
+    </div>
+  );
+}
+
+function RealGamesCard({ id }: { id: string }) {
+  const { t, settings } = useApp();
+  const st = coachGameStats(id);
+  if (!st) return null;
+  const fill = (s: string) => s.replace('{n}', String(st.games)).replace('{from}', st.from ?? '?').replace('{to}', st.to ?? '?');
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  return (
+    <div className="card" data-testid="real-games">
+      <h2>{t('realGames')}</h2>
+      <p className="muted small">{fill(t('realGamesNote'))}</p>
+      {st.games < 100 && <p className="muted small">{fill(t('realGamesFew'))}</p>}
+      <div className="facts">
+        <div><span className="muted small">{t('statScore')}</span><span dir="ltr">{st.score.win} / {st.score.draw} / {st.score.loss}</span></div>
+        <div><span className="muted small">{t('statAcpl')}</span><span dir="ltr">{st.acpl}</span></div>
+        <div><span className="muted small">{t('statBest')}</span><span dir="ltr">{pct(st.bestMoveRate)}</span></div>
+        <div><span className="muted small">{t('statSac')}</span><span dir="ltr">{st.soundSacrificePer100}</span></div>
+        <div><span className="muted small">{t('statChecks')}</span><span dir="ltr">{pct(st.checkRate)}</span></div>
+        <div><span className="muted small">{t('statQueens')}</span><span dir="ltr">{pct(st.queenTradeRate)}</span></div>
+      </div>
+      {st.topOpenings.length > 0 && (
+        <>
+          <h3>{t('statOpenings')}</h3>
+          <ul className="bullets" dir="ltr">{st.topOpenings.map((o) => <li key={o.name}>{o.name} — {o.n}</li>)}</ul>
+        </>
+      )}
+      <span className="muted tiny" dir="ltr" data-lang={settings.lang}>Data: kinairi/chess-data (GPL-3.0)</span>
     </div>
   );
 }

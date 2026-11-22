@@ -1,15 +1,5 @@
 import { useApp } from '../AppContext';
 
-export function Puzzles() {
-  const { t } = useApp();
-  return (
-    <div className="screen">
-      <h1>{t('nav_puzzles')}</h1>
-      <Soon text={t('puzzlesSoon')} badge={t('phase4')} />
-    </div>
-  );
-}
-
 export function Openings() {
   const { t } = useApp();
   return (
