@@ -19,9 +19,10 @@ export interface Puzzle {
 
 export const solverMoves = (p: Puzzle) => p.moves.length / 2;
 
-const TACTIC_THEMES = ['fork', 'pin', 'skewer', 'discoveredAttack', 'doubleCheck', 'hangingPiece', 'trappedPiece', 'deflection',
+const TACTIC_THEMES = ['fork', 'pin', 'skewer', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'hangingPiece', 'trappedPiece', 'deflection',
   'attraction', 'clearance', 'interference', 'xRayAttack', 'intermezzo', 'capturingDefender'];
-const MATE_PATTERNS = ['backRankMate', 'smotheredMate', 'hookMate', 'arabianMate', 'anastasiaMate', 'dovetailMate', 'bodenMate', 'doubleBishopMate'];
+const MATE_PATTERNS = ['backRankMate', 'smotheredMate', 'hookMate', 'arabianMate', 'anastasiaMate', 'dovetailMate', 'bodenMate', 'doubleBishopMate',
+  'balestraMate', 'blindSwineMate', 'cornerMate', 'epauletteMate', 'killBoxMate', 'morphysMate', 'operaMate', 'pillsburysMate', 'swallowstailMate', 'triangleMate', 'vukovicMate'];
 
 const has = (p: Puzzle, ...t: string[]) => t.some((x) => p.themes.includes(x));
 const sides = (p: Puzzle) => { const [a, b] = p.material.split('v'); return { me: a, them: b }; };

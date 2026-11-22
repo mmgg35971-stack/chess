@@ -3,7 +3,9 @@ import 'fake-indexeddb/auto';
 import { readFileSync } from 'node:fs';
 import { Chess } from 'chess.js';
 import { nodeEngine } from '../scripts/lib/node-engine';
-import { ALL_CATEGORIES, MAIN, ENDGAME, MATE, fromRow, categoryById, type Puzzle } from '../src/lib/puzzles/categories';
+import { ALL_CATEGORIES, MAIN, ENDGAME, MATE, categoryById, type Puzzle } from '../src/lib/puzzles/categories';
+import { PuzzleStore, parseLine, countIn, nearest } from '../src/lib/puzzles/store';
+import { BANDS } from '../src/lib/puzzles/glicko2';
 import { goalOf, judgeAlternative, playSolverMove, startPuzzle, solutionSan, playUci, type Evaluate } from '../src/lib/puzzles/solver';
 import { computeStats, getPuzzleRating, listAttempts, pickPuzzle, recordAttempt } from '../src/lib/puzzles/progress';
 import { AcademyDB, useDb } from '../src/lib/storage/db';
@@ -16,14 +18,19 @@ const evaluate: Evaluate = async (fen) => {
   return { cp: l?.score.cp, mate: l?.score.mate, pv: l?.pv ?? [] };
 };
 
-const data = JSON.parse(readFileSync('public/data/puzzles.json', 'utf8'));
-const all: Puzzle[] = data.rows.map(fromRow);
+const store = new PuzzleStore(async (path) => readFileSync('public/data/puzzles/' + path, 'utf8'));
+const idx = await store.index();
+const all: Puzzle[] = [];
+for (let c = 0; c * idx.chunk < idx.n; c++) for (const l of readFileSync(`public/data/puzzles/${c}.txt`, 'utf8').split('\n')) all.push(parseLine(l));
 
 describe('puzzle data', () => {
   it('has the Lichess subset with valid, short solutions', () => {
     const lichess = all.filter((p) => p.source === 'l');
-    expect(lichess.length).toBeGreaterThan(9800);
-    for (const p of lichess.slice(0, 400)) {
+    expect(lichess.length).toBeGreaterThan(100000);
+    expect(idx.n).toBe(all.length);
+    for (let i = 1; i < all.length; i++) expect(all[i].rating >= all[i - 1].rating).toBe(true);
+    expect(new Set(all.map((p) => p.id)).size).toBe(all.length);
+    for (const p of lichess.filter((_, i) => i % 250 === 0)) {
       expect(p.moves.length % 2).toBe(0);
       expect(p.moves.length / 2).toBeLessThanOrEqual(5);
       expect(solutionSan(p)).toHaveLength(p.moves.length - 1); // every stored move is legal
@@ -38,9 +45,13 @@ describe('puzzle data', () => {
       expect(p.moves.length / 2).toBeLessThanOrEqual(5);
     }
   });
-  it('every spec category has puzzles', () => {
+  it('covers every rating band with thousands of puzzles', () => {
+    for (const b of BANDS) expect(countIn(idx, 'c_random', b), b.key).toBeGreaterThan(b.min >= 2400 ? 3000 : 5000);
+  });
+  it('every spec category has puzzles, and the index bitsets match the puzzles', () => {
     const empty = ALL_CATEGORIES.filter((c) => !all.some(c.test)).map((c) => c.id);
     expect(empty).toEqual([]);
+    for (const c of ALL_CATEGORIES) expect(countIn(idx, c.id), c.id).toBe(all.filter(c.test).length);
     expect(MAIN).toHaveLength(10);
     expect(ENDGAME).toHaveLength(10);
     expect(MATE.map((c) => c.id)).toEqual(['m_kq', 'm_kr', 'm_kbn', 'm_in1', 'm_in2', 'm_in3', 'm_in4', 'm_in5', 'm_patterns']);
@@ -110,6 +121,17 @@ describe('rating and stats', () => {
     expect(st).toMatchObject({ rated: 2, solved: 2, failed: 0, skipped: 1, successRate: 1 });
     expect(st.avgTimeMs).toBe(10000);
     expect(st.periods[0].n).toBe(2);
+  });
+  it('the store picks unseen puzzles of the category near the target', async () => {
+    const p = (await store.pick('c_tactics', 1500, new Set(), () => 0))!;
+    expect(Math.abs(p.rating - 1500)).toBeLessThan(10);
+    expect(categoryById('c_tactics').test(p)).toBe(true);
+    const p2 = (await store.pick('c_tactics', 1500, new Set([p.id]), () => 0))!;
+    expect(p2.id).not.toBe(p.id);
+    const hi = (await store.pick('c_random', 1500, new Set(), () => 0.3, { min: 2400, max: 99999 }))!;
+    expect(hi.rating).toBeGreaterThanOrEqual(2400);
+    const kbn = nearest(idx, 'm_kbn', 1000, 50);
+    expect(kbn.length).toBe(all.filter(categoryById('m_kbn').test).length);
   });
   it('picks unseen puzzles close to the target rating', () => {
     const pool = all.filter(categoryById('c_tactics').test);

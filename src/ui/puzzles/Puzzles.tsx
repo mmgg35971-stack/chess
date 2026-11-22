@@ -4,10 +4,11 @@ import { useApp } from '../AppContext';
 import { Board } from '../board/Board';
 import { legalTargets, isPromotion, checkedKingSquare } from '../../lib/chess/game';
 import { getEngine } from '../../lib/engine/engine';
-import { SECTIONS, categoryById, fromRow, type Puzzle } from '../../lib/puzzles/categories';
+import { SECTIONS, type Puzzle } from '../../lib/puzzles/categories';
+import { PuzzleStore, countIn, type PuzzleIndex } from '../../lib/puzzles/store';
 import { BANDS, PROVISIONAL_RD, bandOf, expectedScore } from '../../lib/puzzles/glicko2';
 import {
-  attemptedIds, computeStats, getPuzzleRating, listAttempts, pickPuzzle, recordAttempt, type PuzzleRatingState, type PuzzleStats,
+  attemptedIds, computeStats, getPuzzleRating, listAttempts, recordAttempt, type PuzzleRatingState, type PuzzleStats,
 } from '../../lib/puzzles/progress';
 import {
   expectedMove, goalOf, playSolverMove, playUci, retry, solutionSan, startPuzzle, uciOf, withHint, type Evaluate, type SolveState,
@@ -18,11 +19,10 @@ import { playMoveSound } from '../../lib/sound';
 import type { TKey } from '../../i18n';
 
 // ---------- data ----------
-let cache: Promise<Puzzle[]> | null = null;
-export function loadPuzzles(): Promise<Puzzle[]> {
-  cache ??= fetch('./data/puzzles.json').then((r) => r.json()).then((d: { rows: (string | number)[][] }) => d.rows.map(fromRow));
-  return cache;
-}
+export const puzzleStore = new PuzzleStore((path) => fetch('./data/puzzles/' + path).then((r) => {
+  if (!r.ok) throw new Error('puzzle data ' + path);
+  return r.text();
+}));
 
 interface Prefs { diff: 'easier' | 'normal' | 'harder'; band: string }
 const DEFAULT_PREFS: Prefs = { diff: 'normal', band: 'auto' };
@@ -39,11 +39,11 @@ const fmtRating = (s: { rating: number; rd: number }) => `${Math.round(s.rating)
 // ---------- home ----------
 export function PuzzlesHome() {
   const { t, go, dataVersion } = useApp();
-  const [all, setAll] = useState<Puzzle[] | null>(null);
+  const [all, setAll] = useState<PuzzleIndex | null>(null);
   const [rating, setRating] = useState<PuzzleRatingState | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   useEffect(() => {
-    loadPuzzles().then(setAll);
+    puzzleStore.index().then(setAll);
     getPuzzleRating().then(setRating);
     getSetting<Prefs>('puzzlePrefs', DEFAULT_PREFS).then(setPrefs);
   }, [dataVersion]);
@@ -51,9 +51,8 @@ export function PuzzlesHome() {
   const band = BANDS.find((b) => b.key === prefs.band);
   const counts = useMemo(() => {
     if (!all) return null;
-    const pool = band ? all.filter((p) => p.rating >= band.min && p.rating < band.max) : all;
     const m = new Map<string, number>();
-    for (const s of SECTIONS) for (const c of s.categories) m.set(c.id, pool.filter(c.test).length);
+    for (const s of SECTIONS) for (const c of s.categories) m.set(c.id, countIn(all, c.id, band));
     return m;
   }, [all, band]);
 
@@ -133,11 +132,11 @@ export function PuzzleSolve({ cat }: { cat: string }) {
 
   const next = useCallback(async () => {
     const my = ++gen.current;
-    const [all, r, prefs, seen] = await Promise.all([loadPuzzles(), getPuzzleRating(), getSetting<Prefs>('puzzlePrefs', DEFAULT_PREFS), attemptedIds()]);
-    if (my !== gen.current) return;
-    const c = categoryById(cat);
+    setSt(null); setFb(null); setHint(null);
+    const [r, prefs, seen] = await Promise.all([getPuzzleRating(), getSetting<Prefs>('puzzlePrefs', DEFAULT_PREFS), attemptedIds()]);
     const band = BANDS.find((b) => b.key === prefs.band);
-    const p = pickPuzzle(all.filter(c.test), r.rating + DIFF_OFFSET[prefs.diff], seen, Math.random, band);
+    const p = await puzzleStore.pick(cat, r.rating + DIFF_OFFSET[prefs.diff], seen, Math.random, band);
+    if (my !== gen.current) return;
     setRating(r); setChange(null); setFb(null); setHint(null); setHints(0); setMoved(false); setAltUsed(false); setBusy(false);
     recorded.current = false;
     if (!p) { setNone(true); setPuzzle(null); return; }
@@ -326,7 +325,7 @@ export function PuzzleSolve({ cat }: { cat: string }) {
             {ideasFor(puzzle.themes, L).map((x) => <li key={x.theme}><b>{x.name}:</b> {x.idea}</li>)}
           </ul>
           <div className="row gap wrap">{puzzle.themes.map((th) => <span className="pill" key={th}>{themeName(th, L)}</span>)}</div>
-          <p className="muted tiny">{t('pz_source')}: {puzzle.source === 'l' ? t('pz_sourceLichess', { id: puzzle.id, plays: puzzle.plays }) : t('pz_sourceGen')}</p>
+          <p className="muted tiny">{t('pz_source')}: {puzzle.source === 'g' ? t('pz_sourceGen') : puzzle.plays > 0 ? t('pz_sourceLichess', { id: puzzle.id, plays: puzzle.plays }) : t('pz_sourceLichessId', { id: puzzle.id })}</p>
         </div>
       )}
     </div>

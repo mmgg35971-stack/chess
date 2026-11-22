@@ -1,7 +1,7 @@
 // End-to-end test of the puzzles (spec 7) in Chrome at phone size, offline (every non-local request blocked).
 import { createRequire } from 'node:module';
 import { execSync, spawn } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { Chess } from 'chess.js';
 
 const require = createRequire(execSync('npm root -g').toString().trim() + '/');
@@ -11,12 +11,14 @@ const BASE = `http://localhost:${PORT}/`;
 mkdirSync('test-shots', { recursive: true });
 
 // puzzle lookup by the position shown on the board (after the opponent's set-up move)
-const data = JSON.parse(readFileSync('public/data/puzzles.json', 'utf8'));
 const byFen = new Map();
-for (const r of data.rows) {
-  const c = new Chess(r[1]); const m = r[2].split(' ');
-  c.move({ from: m[0].slice(0, 2), to: m[0].slice(2, 4), promotion: m[0][4] });
-  byFen.set(c.fen(), { id: r[0], moves: m, rating: r[3] });
+for (const f of readdirSync('public/data/puzzles').filter((x) => x.endsWith('.txt'))) {
+  for (const line of readFileSync('public/data/puzzles/' + f, 'utf8').split('\n')) {
+    const [id, fen, moves, rating] = line.split('|');
+    const c = new Chess(fen); const m = moves.split(' ');
+    c.move({ from: m[0].slice(0, 2), to: m[0].slice(2, 4), promotion: m[0][4] });
+    byFen.set(c.fen(), { id, moves: m, rating: +rating });
+  }
 }
 
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
@@ -64,9 +66,12 @@ async function drag(uci, orientation) {
 /** waits for the set-up move, returns the puzzle shown (skipping ones that need a promotion) */
 async function currentPuzzle() {
   for (let i = 0; i < 8; i++) {
-    await page.waitForFunction((m) => { const f = document.querySelector('svg.board')?.getAttribute('data-fen'); return f && m.includes(f); }, [...byFen.keys()].filter(Boolean), { timeout: 15000 }).catch(() => {});
-    const f = await boardFen();
-    const p = byFen.get(f);
+    let f = null, p = null;
+    for (let w = 0; w < 60 && !p; w++) {
+      await page.waitForTimeout(250);
+      const ready = /دورك/.test((await page.getByTestId('pz-feedback').textContent()) ?? '');
+      f = await boardFen(); p = ready ? byFen.get(f) : null;
+    }
     if (p && !p.moves.some((u, k) => k % 2 === 1 && u.length === 5)) return { ...p, color: f.split(' ')[1] };
     await page.getByTestId('pz-skip').click();
     await page.waitForTimeout(900);
