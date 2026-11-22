@@ -88,6 +88,33 @@ export interface PuzzleAttempt {
   rdAfter: number;
 }
 
+/** One learned stage of an opening (spec 8.7). */
+export interface OpeningStageRecord {
+  key: string; // `${openingId}#${stage}`
+  openingId: string;
+  stage: number;
+  completedAt: number | null;
+  /** test attempts (each full run of the stage test) */
+  attempts: number;
+  /** wrong moves over all attempts */
+  mistakes: number;
+  /** passed the test with no mistake on the first attempt */
+  firstTry: boolean;
+  needsReview: boolean;
+  lastAt: number;
+}
+/** A periodic retention test (spec 8.6). */
+export interface OpeningQuiz {
+  id?: number;
+  openingId: string;
+  at: number;
+  /** number of completed stages when the quiz was taken */
+  upto: number;
+  items: number;
+  correct: number;
+  passed: boolean;
+}
+
 export class AcademyDB extends Dexie {
   profile!: Table<Profile, string>;
   games!: Table<SavedGame, number>;
@@ -96,6 +123,8 @@ export class AcademyDB extends Dexie {
   kv!: Table<KV, string>;
   analyses!: Table<StoredAnalysis, number>;
   puzzleAttempts!: Table<PuzzleAttempt, number>;
+  openingStages!: Table<OpeningStageRecord, string>;
+  openingQuizzes!: Table<OpeningQuiz, number>;
 
   constructor(name = 'chess-academy') {
     super(name);
@@ -108,11 +137,12 @@ export class AcademyDB extends Dexie {
     });
     this.version(2).stores({ analyses: 'gameId' });
     this.version(3).stores({ puzzleAttempts: '++id, at, puzzleId, category' });
+    this.version(4).stores({ openingStages: 'key, openingId', openingQuizzes: '++id, openingId, at' });
   }
 }
 
-export const SCHEMA_VERSION = 3;
-export const TABLES = ['profile', 'games', 'activity', 'session', 'kv', 'analyses', 'puzzleAttempts'] as const;
+export const SCHEMA_VERSION = 4;
+export const TABLES = ['profile', 'games', 'activity', 'session', 'kv', 'analyses', 'puzzleAttempts', 'openingStages', 'openingQuizzes'] as const;
 
 let instance: AcademyDB | null = null;
 export function db(): AcademyDB {

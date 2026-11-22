@@ -108,6 +108,11 @@ await step('solve a mate-in-1: info above/below the board, rating goes up, idea 
   expectTrue((await page.getByTestId('pz-total').textContent()) === '1' && (await page.getByTestId('pz-left').textContent()) === '1', 'move counts');
   await page.screenshot({ path: 'test-shots/21-puzzle.png', fullPage: true });
   await drag(p1.moves[1], p1.color);
+  if (!(await page.getByTestId('pz-explain').waitFor({ timeout: 4000 }).then(() => true).catch(() => false))) {
+    // fallback: tap the piece, then the target square
+    const a = await sqXY(p1.moves[1].slice(0, 2), p1.color), b = await sqXY(p1.moves[1].slice(2, 4), p1.color);
+    await page.mouse.click(a.x, a.y); await page.mouse.click(b.x, b.y);
+  }
   await page.getByTestId('pz-explain').waitFor({ timeout: 15000 });
   expectTrue((await page.getByTestId('pz-feedback').textContent()).includes('صحيح'), 'feedback correct');
   const ch = await page.getByTestId('pz-change').textContent();

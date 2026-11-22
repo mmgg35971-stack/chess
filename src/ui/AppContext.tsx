@@ -10,6 +10,9 @@ export type Route =
   | { name: 'puzzle'; cat: string }
   | { name: 'puzzleStats' }
   | { name: 'openings' }
+  | { name: 'opening'; id: string }
+  | { name: 'openingStage'; id: string; stage: number }
+  | { name: 'openingQuiz'; id: string }
   | { name: 'settings' }
   | { name: 'play'; resume?: boolean }
   | { name: 'games'; openId?: number }

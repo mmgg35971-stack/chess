@@ -9,7 +9,7 @@ import { Home } from './screens/Home';
 import { Play } from './screens/Play';
 import { Games } from './screens/Games';
 import { Settings } from './screens/Settings';
-import { Openings } from './screens/Placeholders';
+import { AcademyHome, OpeningPage, QuizScreen, StageScreen } from './academy/Academy';
 import { PuzzlesHome, PuzzleSolve, PuzzleStatsScreen } from './puzzles/Puzzles';
 import { Coaches, CoachDetail } from './coach/CoachScreens';
 import { CoachGame } from './coach/CoachGame';
@@ -90,14 +90,17 @@ export function App() {
       case 'puzzles': return <PuzzlesHome />;
       case 'puzzle': return <PuzzleSolve key={navKey} cat={route.cat} />;
       case 'puzzleStats': return <PuzzleStatsScreen />;
-      case 'openings': return <Openings />;
+      case 'openings': return <AcademyHome />;
+      case 'opening': return <OpeningPage key={route.id} id={route.id} />;
+      case 'openingStage': return <StageScreen key={navKey} id={route.id} stage={route.stage} />;
+      case 'openingQuiz': return <QuizScreen key={navKey} id={route.id} />;
       case 'coach': return <CoachDetail id={route.id} />;
       case 'coachGame': return <CoachGame key={navKey} id={route.id} resume={route.resume} />;
       case 'analysis': return <Analysis key={route.gameId} gameId={route.gameId} />;
     }
   })();
 
-  const activeNav = ['play', 'coach', 'coachGame'].includes(route.name) ? 'coaches' : ['games', 'analysis'].includes(route.name) ? 'home' : ['puzzle', 'puzzleStats'].includes(route.name) ? 'puzzles' : route.name;
+  const activeNav = ['play', 'coach', 'coachGame'].includes(route.name) ? 'coaches' : ['games', 'analysis'].includes(route.name) ? 'home' : ['puzzle', 'puzzleStats'].includes(route.name) ? 'puzzles' : ['opening', 'openingStage', 'openingQuiz'].includes(route.name) ? 'openings' : route.name;
 
   return (
     <AppCtx.Provider value={ctx}>

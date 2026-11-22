@@ -168,3 +168,24 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color:
 .pz-actions { margin-top: 8px; }
 .pz-line { font-size: 15px; line-height: 1.8; }
 .pz-chart { margin: 8px 0 0; }
+
+/* ---- openings academy ---- */
+.ac-list { display: flex; flex-direction: column; gap: 10px; }
+.ac-card { display: flex; flex-direction: column; gap: 6px; text-align: start; color: inherit; width: 100%; }
+.row.between { justify-content: space-between; align-items: center; }
+.ac-bar { height: 6px; border-radius: 3px; background: var(--bg2); overflow: hidden; }
+.ac-bar span { display: block; height: 100%; background: var(--accent); }
+.ac-review { color: var(--loss); }
+.ac-moves { line-height: 1.8; }
+.ac-moves .mv { cursor: pointer; padding: 1px 2px; border-radius: 4px; }
+.ac-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ac-stages { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ac-stage { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg2); color: inherit; text-align: start; }
+.ac-stage.done { border-color: var(--win); }
+.ac-stage.cur { border-color: var(--accent); }
+.ac-stage:disabled { opacity: 0.45; }
+.ac-stage .tiny { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ac-lines { padding-inline-start: 16px; line-height: 1.6; }
+.ac-fb.good { border-color: var(--win); }
+.ac-fb.bad { border-color: var(--loss); }
+.ac-head { padding: 8px 12px; }
