@@ -1,0 +1,29 @@
+import { createContext, useContext } from 'react';
+import type { T } from '../i18n';
+import type { Settings } from '../lib/settings';
+import type { Profile } from '../lib/storage/db';
+
+export type Route =
+  | { name: 'home' }
+  | { name: 'coaches' }
+  | { name: 'puzzles' }
+  | { name: 'openings' }
+  | { name: 'settings' }
+  | { name: 'play'; resume?: boolean }
+  | { name: 'games'; openId?: number };
+
+export interface Ctx {
+  t: T;
+  settings: Settings;
+  setSettings: (patch: Partial<Settings>) => void;
+  profile: Profile | null;
+  refreshProfile: () => Promise<void>;
+  go: (r: Route) => void;
+  toast: (msg: string) => void;
+  /** bumps whenever data changes, so screens re-query */
+  dataVersion: number;
+  bumpData: () => void;
+}
+
+export const AppCtx = createContext<Ctx>(null as unknown as Ctx);
+export const useApp = () => useContext(AppCtx);
