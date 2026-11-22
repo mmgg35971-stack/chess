@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write   # publish the APK as a release asset
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,7 +48,25 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
+      - name: Verify APK contents
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          ls -l "$APK"
+          unzip -l "$APK" | grep -E "assets/public/(index.html|engine/|pieces/cburnett/wK)"
+          unzip -l "$APK" | grep -q "assets/public/engine/stockfish-19-lite-single.wasm"
+          cp "$APK" chess-academy.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: chess-academy-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: chess-academy.apk
+
+      - name: Publish as the "apk-latest" release (direct download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest chess-academy.apk \
+            --prerelease \
+            --title "Latest test build (debug APK)" \
+            --notes "Debug build from commit ${GITHUB_SHA::7}. For testing only; not signed for the Play Store."
