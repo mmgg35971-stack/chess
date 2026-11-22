@@ -81,6 +81,7 @@ function Replay({ game, onClose }: { game: SavedGame; onClose: () => void }) {
         lastMove={last ? [last.from as Square, last.to as Square] : null}
         themeId={settings.boardTheme} pieceSet={settings.pieceSet}
         coordinates={settings.coordinates} showLegal={false} showLastMove={settings.showLastMove}
+      animationMs={settings.animationMs}
       />
       <div className="row gap center" dir="ltr">
         <button className="btn" onClick={() => setPly(0)}>⏮</button>

@@ -28,6 +28,7 @@ export interface Settings {
   showLegal: boolean;
   showArrows: boolean;
   sound: boolean;
+  animationMs: number;
   analysisDepth: number;
   analysisMoveTimeMs: number;
 }
@@ -42,6 +43,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showLegal: true,
   showArrows: true,
   sound: true,
+  animationMs: 250,
   analysisDepth: 16,
   analysisMoveTimeMs: 2000,
 };

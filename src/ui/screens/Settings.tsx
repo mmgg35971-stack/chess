@@ -142,6 +142,10 @@ export function Settings() {
         {toggle('showLastMove', t('lastMove'))}
         {toggle('showLegal', t('legalMoves'))}
         {toggle('sound', t('sound'))}
+        <div className="field"><span>{t('animSpeed')}</span>
+          <Segmented value={String(settings.animationMs)} onChange={(v) => setSettings({ animationMs: Number(v) })}
+            options={[['0', t('animOff')], ['150', t('animFast')], ['250', t('animNormal')], ['450', t('animSlow')]]} />
+        </div>
       </section>
 
       <section className="card">

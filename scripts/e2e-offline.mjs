@@ -83,7 +83,13 @@ await step('tap-move and drag-move are legal-only; engine replies', async () => 
   await tap('e2'); await tap('e5'); // illegal: nothing happens
   expectTrue((await fen()).startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP'), 'illegal move rejected');
   await tap('e2'); await tap('e4');
+  const animating = await page.evaluate(() => document.getAnimations().length);
+  expectTrue(animating > 0, 'piece slide animation should be running');
+  const t0 = Date.now();
   await waitTurn('w');
+  const replyMs = Date.now() - t0;
+  console.log(`   engine replied after ${replyMs} ms`);
+  expectTrue(replyMs >= 700 && replyMs < 4500, 'engine reply time should look human: ' + replyMs);
   expectTrue((await fen()).includes('4P3'), 'e4 played');
   await dragMove('g1', 'f3');
   await waitTurn('w');
@@ -148,6 +154,31 @@ await step('stats come from the real game; history replay works', async () => {
   const hdr = await page.locator('.res').first().evaluate((e) => ({ text: e.textContent, dir: getComputedStyle(e).direction }));
   expectTrue(hdr.text === '0-1' && hdr.dir === 'ltr', 'result isolated LTR: ' + JSON.stringify(hdr));
   await page.screenshot({ path: 'test-shots/04-replay.png' });
+});
+
+await step('with a 5+0 clock the engine spends its own time', async () => {
+  await page.getByTestId('nav-home').click();
+  await page.getByTestId('play-engine').click();
+  await page.locator('input[type=range]').fill('1');
+  await page.locator('select').selectOption('5+0');
+  await page.getByTestId('start-game').click();
+  await page.locator('svg.board').waitFor();
+  await tap('e2'); await tap('e4');
+  await waitTurn('w');
+  for (let i = 0; i < 3; i++) {
+    await waitTurn('w');
+    const c = new Chess(await fen());
+    const m = c.moves({ verbose: true }).find((x) => !x.promotion);
+    await tap(m.from); await tap(m.to);
+  }
+  await waitTurn('w');
+  const black = await page.getByTestId('clock-b').textContent();
+  const [mm, ss] = black.split(':').map(Number);
+  const used = 300 - (mm * 60 + ss);
+  console.log(`   engine clock ${black} after 4 moves (used ~${used}s)`);
+  expectTrue(used >= 3, 'engine should have used clock time, used ' + used + 's');
+  await page.getByTestId('resign').click();
+  await page.getByTestId('result').waitFor();
 });
 
 await step('UI stays responsive while the engine thinks (level 8)', async () => {

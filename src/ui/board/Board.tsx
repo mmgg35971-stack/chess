@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Square } from 'chess.js';
 import { boardTheme, type PieceSet } from '../../lib/settings';
 
@@ -25,6 +25,8 @@ export interface BoardProps {
   coordinates: boolean;
   showLegal: boolean;
   showLastMove: boolean;
+  /** slide duration for moved pieces; 0 disables animation */
+  animationMs?: number;
   label?: string;
 }
 
@@ -61,6 +63,8 @@ export function Board(p: BoardProps) {
   const theme = boardTheme(p.themeId);
   const pieces = useMemo(() => parseFen(p.fen), [p.fen]);
   const flip = p.orientation === 'b';
+  const prevPieces = useRef<PieceOn[]>(pieces);
+  const droppedOn = useRef<Square | null>(null); // a piece the user just dragged there needs no slide
   const pieceAt = (sq: Square) => pieces.find((x) => x.sq === sq);
 
   const xy = (sq: Square) => {
@@ -68,6 +72,38 @@ export function Board(p: BoardProps) {
     const r = Number(sq[1]) - 1;
     return flip ? { x: (7 - f) * S, y: r * S } : { x: f * S, y: (7 - r) * S };
   };
+
+  // Slide every piece that changed square (handles castling and en passant too).
+  useLayoutEffect(() => {
+    const before = prevPieces.current;
+    prevPieces.current = pieces;
+    const ms = p.animationMs ?? 0;
+    const svg = svgRef.current;
+    if (!ms || !svg || before === pieces) return;
+    const was = new Map(before.map((x) => [x.sq, x.code]));
+    const now = new Map(pieces.map((x) => [x.sq, x.code]));
+    const vacated = before.filter((x) => now.get(x.sq) !== x.code);
+    const arrived = pieces.filter((x) => was.get(x.sq) !== x.code);
+    if (arrived.length > 3) return; // a jump (new game, replay seek) — no slide
+    for (const a of arrived) {
+      if (droppedOn.current === a.sq) continue;
+      // same piece, or a pawn that promoted on this square
+      const src =
+        vacated.find((v) => v.code === a.code) ??
+        vacated.find((v) => v.code === a.code[0] + 'P' && (a.sq[1] === '8' || a.sq[1] === '1'));
+      if (!src) continue;
+      vacated.splice(vacated.indexOf(src), 1);
+      const el = svg.querySelector<SVGImageElement>(`image[data-sq="${a.sq}"]`);
+      if (!el?.animate) continue;
+      const A = xy(src.sq), Bxy = xy(a.sq);
+      el.animate(
+        [{ transform: `translate(${A.x - Bxy.x}px, ${A.y - Bxy.y}px)` }, { transform: 'translate(0px, 0px)' }],
+        { duration: ms, easing: 'cubic-bezier(.25,.8,.35,1)' },
+      );
+    }
+    droppedOn.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pieces]);
 
   const pointToSvg = (clientX: number, clientY: number) => {
     const rect = svgRef.current!.getBoundingClientRect();
@@ -130,7 +166,10 @@ export function Board(p: BoardProps) {
     if (!drag) return;
     const pt = pointToSvg(e.clientX, e.clientY);
     const sq = squareAt(pt.x, pt.y);
-    if (drag.moved && sq && sq !== drag.from) attempt(drag.from, sq);
+    if (drag.moved && sq && sq !== drag.from) {
+      droppedOn.current = sq;
+      if (!attempt(drag.from, sq)) droppedOn.current = null;
+    }
     setDrag(null);
   };
 

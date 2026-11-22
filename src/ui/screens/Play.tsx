@@ -9,6 +9,8 @@ import {
 import { buildPgn, pgnDate } from '../../lib/chess/pgn';
 import { getEngine } from '../../lib/engine/engine';
 import { ENGINE_LEVELS, levelConfig } from '../../lib/engine/levels';
+import { engineThinkMs } from '../../lib/engine/timing';
+import type { Score } from '../../lib/engine/uci';
 import { clearSession, loadSession, saveFinishedGame, saveSession } from '../../lib/storage/repo';
 import type { GameMode, Session } from '../../lib/storage/db';
 import { playMoveSound } from '../../lib/sound';
@@ -141,11 +143,24 @@ export function Play({ resume }: { resume?: boolean }) {
   const engineMove = useCallback(async (s: Session) => {
     const myGen = ++gen.current;
     setThinking(true);
+    const startedAt = Date.now();
     const cfg = levelConfig(s.level);
     const engine = getEngine();
     await engine.setOption('Skill Level', cfg.skill);
-    const res = await engine.search(chess.current.fen(), cfg.limits);
+    const res = await engine.search(chess.current.fen(), cfg.limits, { multipv: 2 });
     if (myGen !== gen.current) return; // game changed while thinking
+    // Spend a realistic amount of time on the move (its own clock keeps running).
+    const tc = TIME_CONTROLS[s.timeControl];
+    const target = engineThinkMs({
+      legalMoves: chess.current.moves().length,
+      gapCp: res.lines.length >= 2 ? scoreCp(res.lines[0].score) - scoreCp(res.lines[1].score) : null,
+      ply: chess.current.history().length,
+      clockMs: clocksRef.current ? clocksRef.current[chess.current.turn()] : null,
+      incMs: tc?.inc ?? 0,
+    });
+    const wait = target - (Date.now() - startedAt);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    if (myGen !== gen.current) return;
     setThinking(false);
     if (!res.bestmove) return;
     const mv = tryMove(chess.current, uciToMove(res.bestmove));
@@ -247,6 +262,7 @@ export function Play({ resume }: { resume?: boolean }) {
       coordinates={settings.coordinates}
       showLegal={settings.showLegal}
       showLastMove={settings.showLastMove}
+      animationMs={settings.animationMs}
     />
   );
 
@@ -332,6 +348,11 @@ export function Play({ resume }: { resume?: boolean }) {
       <span hidden data-testid="opp-color">{oppColor}</span>
     </div>
   );
+}
+
+function scoreCp(s: Score): number {
+  if (s.mate !== undefined) return s.mate > 0 ? 10000 - s.mate : -10000 - s.mate;
+  return s.cp ?? 0;
 }
 
 export function MoveList({ sans, title, current, onPick }: { sans: string[]; title: string; current?: number; onPick?: (ply: number) => void }) {
