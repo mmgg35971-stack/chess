@@ -9,7 +9,10 @@ import { Home } from './screens/Home';
 import { Play } from './screens/Play';
 import { Games } from './screens/Games';
 import { Settings } from './screens/Settings';
-import { Coaches, Openings, Puzzles } from './screens/Placeholders';
+import { Openings, Puzzles } from './screens/Placeholders';
+import { Coaches, CoachDetail } from './coach/CoachScreens';
+import { CoachGame } from './coach/CoachGame';
+import { Analysis } from './analysis/Analysis';
 
 const NAV: { route: Route['name']; key: TKey; icon: IconName }[] = [
   { route: 'coaches', key: 'nav_coaches', icon: 'person' },
@@ -80,10 +83,13 @@ export function App() {
       case 'coaches': return <Coaches />;
       case 'puzzles': return <Puzzles />;
       case 'openings': return <Openings />;
+      case 'coach': return <CoachDetail id={route.id} />;
+      case 'coachGame': return <CoachGame key={navKey} id={route.id} resume={route.resume} />;
+      case 'analysis': return <Analysis key={route.gameId} gameId={route.gameId} />;
     }
   })();
 
-  const activeNav = route.name === 'play' ? 'coaches' : route.name === 'games' ? 'home' : route.name;
+  const activeNav = ['play', 'coach', 'coachGame'].includes(route.name) ? 'coaches' : ['games', 'analysis'].includes(route.name) ? 'home' : route.name;
 
   return (
     <AppCtx.Provider value={ctx}>

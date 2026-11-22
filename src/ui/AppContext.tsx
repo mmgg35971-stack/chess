@@ -10,7 +10,10 @@ export type Route =
   | { name: 'openings' }
   | { name: 'settings' }
   | { name: 'play'; resume?: boolean }
-  | { name: 'games'; openId?: number };
+  | { name: 'games'; openId?: number }
+  | { name: 'coach'; id: string }
+  | { name: 'coachGame'; id: string; resume?: boolean }
+  | { name: 'analysis'; gameId: number };
 
 export interface Ctx {
   t: T;

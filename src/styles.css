@@ -107,3 +107,42 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color:
 .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; cursor: pointer; }
 .tabbar button.on { color: var(--accent); }
 .toast { position: fixed; inset: auto 16px 90px 16px; margin: auto; max-width: 420px; background: var(--text); color: var(--bg); padding: 12px 16px; border-radius: 12px; text-align: center; }
+/* ---- coaches ---- */
+.flag { width: 20px; height: 14px; vertical-align: -2px; border-radius: 2px; margin-inline-start: 4px; object-fit: cover; }
+.emblem-svg { flex: none; border-radius: 16px; }
+.coach-hero { display: flex; gap: 14px; align-items: center; }
+.coach-hero h1 { margin: 0 0 2px; }
+.facts > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.facts > div:last-child { border-bottom: 0; }
+.bullets { margin: 6px 0 12px; padding-inline-start: 20px; line-height: 1.7; }
+.card p { line-height: 1.65; margin: 6px 0; }
+/* ---- board + eval bar ---- */
+.board-row { display: flex; gap: 6px; align-items: stretch; }
+.board-row .board-wrap { flex: 1; min-width: 0; }
+.evalbar { position: relative; width: 24px; flex: none; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.evalbar-black { background: #2b2d33; transition: flex-basis 0.4s ease; }
+.evalbar-white { background: #eeeae2; transition: flex-basis 0.4s ease; }
+.evalbar-label { position: absolute; left: 0; right: 0; text-align: center; font-size: 8px; font-weight: 700; letter-spacing: -0.3px; }
+.evalbar-label.bottom { bottom: 2px; } .evalbar-label.top { top: 2px; }
+.evalbar-label.dark { color: #222; } .evalbar-label.light { color: #eee; }
+.evalgraph { width: 100%; height: 60px; border-radius: 8px; cursor: pointer; }
+.pv-line { font-variant-numeric: tabular-nums; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+/* ---- move labels (original palette & symbols) ---- */
+.lb { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; color: #fff; white-space: nowrap; }
+.lbt { font-size: 10px; font-weight: 800; margin-inline-start: 2px; padding: 0 3px; border-radius: 4px; color: #fff; }
+.lb-brilliant { background: #b26ee0; } .lb-great { background: #4a7fd4; } .lb-best { background: #2e9d63; }
+.lb-excellent { background: #5aa469; } .lb-good { background: #7c8a6f; } .lb-inaccuracy { background: #d99a2b; }
+.lb-mistake { background: #e2762a; } .lb-missedWin { background: #d65478; } .lb-blunder { background: #d04038; }
+/* ---- coach comments ---- */
+.comments { display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow: auto; }
+.comment { border-inline-start: 3px solid var(--line); padding-inline-start: 10px; }
+.comment.coach { border-color: var(--accent); }
+.comment p { margin: 4px 0; font-size: 14px; }
+.comment-san { font-weight: 700; margin-inline: 6px; }
+/* ---- summary ---- */
+.acc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.acc-row > div { background: var(--bg2); border-radius: 10px; padding: 8px; text-align: center; display: flex; flex-direction: column; }
+.acc-row b { font-size: 24px; }
+.label-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.label-table th, .label-table td { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: start; }
+.label-table td:not(:first-child), .label-table th:not(:first-child) { text-align: center; width: 22%; }

@@ -17,7 +17,7 @@ import { playMoveSound } from '../../lib/sound';
 import { fmtClock, fmtDuration } from '../format';
 import { saveTextFile, stamp } from '../../lib/files';
 
-const TIME_CONTROLS: Record<string, { base: number; inc: number } | null> = {
+export const TIME_CONTROLS: Record<string, { base: number; inc: number } | null> = {
   none: null,
   '5+0': { base: 5 * 60e3, inc: 0 },
   '10+0': { base: 10 * 60e3, inc: 0 },
@@ -44,6 +44,7 @@ export function Play({ resume }: { resume?: boolean }) {
   const [engineReady, setEngineReady] = useState(false);
   const [outcome, setOutcome] = useState<GameOutcome | null>(null);
   const [savedPgn, setSavedPgn] = useState('');
+  const [savedId, setSavedId] = useState<number | null>(null);
   const [clocks, setClocks] = useState<{ w: number; b: number } | null>(null);
   const gen = useRef(0); // invalidates stale engine replies (undo / resign / new game)
   const sessionRef = useRef<Session | null>(null);
@@ -110,7 +111,7 @@ export function Play({ resume }: { resume?: boolean }) {
       TimeControl: s.timeControl,
     });
     setSavedPgn(pgn);
-    await saveFinishedGame({
+    const gid = await saveFinishedGame({
       pgn, white, black, userColor: s.userColor,
       opponent: { kind: 'engine', level: s.level },
       mode: s.mode, result: o.result, reason: o.reason,
@@ -118,6 +119,7 @@ export function Play({ resume }: { resume?: boolean }) {
       startedAt: s.startedAt, endedAt: now, durationMs: s.activeMs,
       timeControl: s.timeControl,
     });
+    setSavedId(gid);
     bumpData();
   }, [settings.sound, t, userName, bumpData]);
 
@@ -336,9 +338,9 @@ export function Play({ resume }: { resume?: boolean }) {
         <div className="card">
           <h2>{t('gameOver')}</h2>
           <p>{hist.length} {t('plies')} · {t('duration')}: {fmtDuration(session?.activeMs ?? 0, t)}</p>
-          <p className="muted small">{t('analysisSoon')}</p>
           <div className="row gap wrap">
-            <button className="btn primary" onClick={() => { setPhase('setup'); clearSession(); }}>{t('newGame')}</button>
+            {savedId && <button className="btn primary" onClick={() => go({ name: 'analysis', gameId: savedId })} data-testid="analyze-game">{t('analyzeGame')}</button>}
+            <button className="btn" onClick={() => { setPhase('setup'); clearSession(); }}>{t('newGame')}</button>
             <button className="btn" onClick={() => saveTextFile(`game-${stamp()}.pgn`, savedPgn, 'application/x-chess-pgn')}>{t('exportPgn')}</button>
             <button className="btn" onClick={() => go({ name: 'home' })}>{t('backHome')}</button>
           </div>

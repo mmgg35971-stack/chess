@@ -20,6 +20,8 @@ export interface BoardProps {
   lastMove?: [Square, Square] | null;
   checkSquare?: Square | null;
   arrows?: Arrow[];
+  /** extra square highlights, e.g. a hint */
+  highlights?: { sq: Square; color: string }[];
   themeId: string;
   pieceSet: PieceSet;
   coordinates: boolean;
@@ -243,6 +245,7 @@ export function Board(p: BoardProps) {
       >
         {squares}
         {p.showLastMove && p.lastMove && p.lastMove.map((sq, i) => highlight(sq, 'rgba(255,214,64,0.42)', 'lm' + i))}
+        {(p.highlights ?? []).map((h, i) => highlight(h.sq, h.color, 'hl' + i))}
         {selected && highlight(selected, 'rgba(70,160,255,0.45)', 'sel')}
         {p.checkSquare && (
           <circle cx={xy(p.checkSquare).x + S / 2} cy={xy(p.checkSquare).y + S / 2} r={46} fill="rgba(230,40,40,0.55)" />

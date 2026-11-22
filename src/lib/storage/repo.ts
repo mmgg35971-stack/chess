@@ -1,4 +1,4 @@
-import { db, SCHEMA_VERSION, TABLES, type Profile, type SavedGame, type Session } from './db';
+import { db, SCHEMA_VERSION, TABLES, type Profile, type SavedGame, type Session, type StoredAnalysis } from './db';
 import { importPgn } from '../chess/pgn';
 
 export async function ensureProfile(defaultName: string): Promise<Profile> {
@@ -27,6 +27,12 @@ export async function saveFinishedGame(g: Omit<SavedGame, 'id'>): Promise<number
     await db().session.delete('current');
     return id;
   });
+}
+
+export const getAnalysis = (gameId: number) => db().analyses.get(gameId);
+export const saveAnalysis = (a: StoredAnalysis) => db().analyses.put(a);
+export async function gamesVsCoach(coachId: string) {
+  return (await db().games.toArray()).filter((g) => g.opponent.kind === 'coach' && g.opponent.id === coachId).length;
 }
 
 export const listGames = () => db().games.orderBy('endedAt').reverse().toArray();

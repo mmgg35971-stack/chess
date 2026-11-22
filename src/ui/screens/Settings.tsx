@@ -151,7 +151,18 @@ export function Settings() {
       <section className="card">
         <h2>{t('analysis')}</h2>
         <div className="field"><span>{t('engine')}</span><span className="muted" dir="ltr">{engineName || '…'} (WASM lite, 1 thread)</span></div>
-        <p className="muted small">{t('analysisSoon')}</p>
+        <label className="field"><span>{t('depth')}: {settings.analysisDepth}</span>
+          <input type="range" min={8} max={22} value={settings.analysisDepth} onChange={(e) => setSettings({ analysisDepth: Number(e.target.value) })} />
+        </label>
+        <label className="field"><span>{t('moveTime')}: {settings.analysisMoveTimeMs / 1000}</span>
+          <input type="range" min={500} max={8000} step={500} value={settings.analysisMoveTimeMs} onChange={(e) => setSettings({ analysisMoveTimeMs: Number(e.target.value) })} />
+        </label>
+        <div className="field"><span>{t('strictness')}</span>
+          <Segmented value={settings.strictness} onChange={(v) => setSettings({ strictness: v as S['strictness'] })}
+            options={[['lenient', t('strict_lenient')], ['standard', t('strict_standard')], ['strict', t('strict_strict')]]} />
+        </div>
+        {toggle('showArrows', t('arrows'))}
+        {toggle('autoAnalyze', t('autoAnalyze'))}
       </section>
 
       <section className="card">

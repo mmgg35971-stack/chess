@@ -59,7 +59,7 @@ export function Games({ openId }: { openId?: number }) {
 }
 
 function Replay({ game, onClose }: { game: SavedGame; onClose: () => void }) {
-  const { t, settings } = useApp();
+  const { t, settings, go } = useApp();
   const { sans, fens, moves } = useMemo(() => {
     const c = new Chess();
     c.loadPgn(game.pgn);
@@ -90,7 +90,7 @@ function Replay({ game, onClose }: { game: SavedGame; onClose: () => void }) {
         <button className="btn" onClick={() => setPly(Math.min(sans.length, ply + 1))} data-testid="next">▶</button>
         <button className="btn" onClick={() => setPly(sans.length)}>⏭</button>
       </div>
-      <p className="muted small">{t('analysisSoon')}</p>
+      <button className="btn primary" onClick={() => go({ name: 'analysis', gameId: game.id! })} data-testid="open-analysis">{t('analyzeGame')}</button>
       <MoveList sans={sans} title={t('moves')} current={ply} onPick={setPly} />
       <button className="btn" onClick={() => saveTextFile(`game-${game.id}.pgn`, game.pgn, 'application/x-chess-pgn')}>{t('exportPgn')}</button>
     </div>

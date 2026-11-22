@@ -8,7 +8,7 @@ export interface Profile {
   createdAt: number;
 }
 
-export type GameMode = 'competitive' | 'training';
+export type GameMode = 'competitive' | 'training' | 'educational';
 
 export interface SavedGame {
   id?: number;
@@ -52,6 +52,17 @@ export interface Session {
   undoCount: number;
 }
 
+export interface StoredAnalysis {
+  gameId: number;
+  /** 'live' = collected during a coach game; 'full' = full-game analysis */
+  kind: 'live' | 'full';
+  evals: import('../analysis/analyzer').MoveEval[];
+  curve?: import('../engine/uci').Score[];
+  depth: number;
+  engine: string;
+  createdAt: number;
+}
+
 export interface KV {
   key: string;
   value: unknown;
@@ -63,6 +74,7 @@ export class AcademyDB extends Dexie {
   activity!: Table<Activity, number>;
   session!: Table<Session, string>;
   kv!: Table<KV, string>;
+  analyses!: Table<StoredAnalysis, number>;
 
   constructor(name = 'chess-academy') {
     super(name);
@@ -73,11 +85,12 @@ export class AcademyDB extends Dexie {
       session: 'id',
       kv: 'key',
     });
+    this.version(2).stores({ analyses: 'gameId' });
   }
 }
 
-export const SCHEMA_VERSION = 1;
-export const TABLES = ['profile', 'games', 'activity', 'session', 'kv'] as const;
+export const SCHEMA_VERSION = 2;
+export const TABLES = ['profile', 'games', 'activity', 'session', 'kv', 'analyses'] as const;
 
 let instance: AcademyDB | null = null;
 export function db(): AcademyDB {

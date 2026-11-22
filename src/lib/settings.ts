@@ -31,6 +31,8 @@ export interface Settings {
   animationMs: number;
   analysisDepth: number;
   analysisMoveTimeMs: number;
+  strictness: 'lenient' | 'standard' | 'strict';
+  autoAnalyze: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -44,8 +46,10 @@ export const DEFAULT_SETTINGS: Settings = {
   showArrows: true,
   sound: true,
   animationMs: 250,
-  analysisDepth: 16,
-  analysisMoveTimeMs: 2000,
+  analysisDepth: 14,
+  analysisMoveTimeMs: 1500,
+  strictness: 'standard',
+  autoAnalyze: false,
 };
 
 export function boardTheme(id: string): BoardTheme {
