@@ -5,7 +5,7 @@ import { Board } from '../board/Board';
 import { legalTargets, isPromotion, checkedKingSquare } from '../../lib/chess/game';
 import { getEngine } from '../../lib/engine/engine';
 import { SECTIONS, type Puzzle } from '../../lib/puzzles/categories';
-import { PuzzleStore, countIn, type PuzzleIndex } from '../../lib/puzzles/store';
+import { PuzzleStore, countIn, fetchGz, type PuzzleIndex } from '../../lib/puzzles/store';
 import { BANDS, PROVISIONAL_RD, bandOf, expectedScore } from '../../lib/puzzles/glicko2';
 import {
   attemptedIds, computeStats, getPuzzleRating, listAttempts, recordAttempt, type PuzzleRatingState, type PuzzleStats,
@@ -19,10 +19,7 @@ import { playMoveSound } from '../../lib/sound';
 import type { TKey } from '../../i18n';
 
 // ---------- data ----------
-export const puzzleStore = new PuzzleStore((path) => fetch('./data/puzzles/' + path).then((r) => {
-  if (!r.ok) throw new Error('puzzle data ' + path);
-  return r.text();
-}));
+export const puzzleStore = new PuzzleStore((path) => fetchGz('./data/puzzles/', path));
 
 interface Prefs { diff: 'easier' | 'normal' | 'harder'; band: string }
 const DEFAULT_PREFS: Prefs = { diff: 'normal', band: 'auto' };
@@ -265,7 +262,7 @@ export function PuzzleSolve({ cat }: { cat: string }) {
 
   return (
     <div className="screen play puzzle">
-      <div className="card pz-top" data-testid="pz-top">
+      <div className="card pz-top" data-testid="pz-top" data-puzzle-id={puzzle.id}>
         <div><span className="muted tiny">{t('pz_myRating')}</span><b dir="ltr" data-testid="pz-user-rating">{rating ? fmtRating(rating) : '…'}</b>
           {change !== null && <span className={'pz-change ' + (change >= 0 ? 'up' : 'down')} dir="ltr" data-testid="pz-change">{change >= 0 ? '+' : ''}{Math.round(change)}</span>}
         </div>

@@ -3,6 +3,9 @@
 // 1. Theory lines: curated main/extra lines (src/lib/academy/defs.ts) + every Lichess named line
 //    (lichess-org/chess-openings, CC0) of the opening's families that starts with its root moves.
 //    Every move is checked for legality with chess.js.
+//    Then every line is continued along the moves masters actually played (master-tree.json.gz,
+//    326k games from kinairi/chess-data, GPL-3.0): the learner follows the most played move (and a
+//    second one if it is common), the opponent's main replies (≥15% of games) branch.
 // 2. Stockfish 19 (depth 12, MultiPV 5) evaluates every position where the learner is to move.
 //    The theory move gets: the engine's best move, and the centipawn loss vs. the best move.
 //    Lines in which a learner move loses more than 120 cp are left out (a theory name does not make
@@ -12,6 +15,7 @@
 //
 // usage: npx tsx scripts/academy/build-academy.ts [--eval-only worker workers]
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { Chess } from 'chess.js';
 import { OPENINGS } from '../../src/lib/academy/defs';
 import { buildStages, isLearnerPly, type Line } from '../../src/lib/academy/stages';
@@ -36,6 +40,32 @@ function legal(sans: string[]) {
   const c = new Chess();
   try { for (const s of sans) c.move(s); return true; } catch { return false; }
 }
+const master = JSON.parse(gunzipSync(readFileSync(here + 'master-tree.json.gz')).toString()) as { counts: Record<string, number> };
+const kids = new Map<string, [string, number][]>();
+for (const [k, n] of Object.entries(master.counts)) {
+  const i = k.lastIndexOf(' ');
+  const parent = i < 0 ? '' : k.slice(0, i), mv = i < 0 ? k : k.slice(i + 1);
+  if (!kids.has(parent)) kids.set(parent, []);
+  kids.get(parent)!.push([mv, n]);
+}
+for (const v of kids.values()) v.sort((a, b) => b[1] - a[1]);
+const MAX_PLY = 24, MAX_NEW = 400;
+/** continuations of `sans` along master games; returns leaf lines with their game counts */
+function masterLeaves(sans: string[], side: 'w' | 'b'): { sans: string[]; games: number }[] {
+  const out: { sans: string[]; games: number }[] = [];
+  const walk = (cur: string[], games: number) => {
+    const ch = cur.length < MAX_PLY ? kids.get(cur.join(' ')) ?? [] : [];
+    const node = master.counts[cur.join(' ')] ?? 0;
+    const learner = isLearnerPly(cur.length, side);
+    const pick = learner
+      ? ch.filter(([, n], i) => i === 0 ? n >= 8 : i === 1 && n >= 15 && n >= 0.25 * node)
+      : ch.filter(([, n], i) => i < 3 && n >= 10 && n >= 0.15 * node);
+    if (!pick.length) { if (cur.length > sans.length) out.push({ sans: cur, games }); return; }
+    for (const [m, n] of pick) walk([...cur, m], n);
+  };
+  walk(sans, master.counts[sans.join(' ')] ?? 0);
+  return out;
+}
 const linesOf = new Map<string, Line[]>();
 let illegal = 0;
 for (const o of OPENINGS) {
@@ -56,7 +86,24 @@ for (const o of OPENINGS) {
     .filter((t) => rootMoves.every((m, i) => t.sans[i] === m))
     .sort((a, b) => (a.eco < b.eco ? -1 : a.eco > b.eco ? 1 : a.sans.length - b.sans.length));
   for (const t of fromTsv) add({ name: t.name, eco: t.eco, sans: t.sans, source: 'lichess' });
-  linesOf.set(o.id, lines);
+  // master continuations, each right after the line it extends
+  const withMasters: Line[] = [];
+  let added = 0;
+  for (const l of lines) {
+    withMasters.push(l);
+    if (added >= MAX_NEW) continue;
+    for (const leaf of masterLeaves(l.sans, o.side)) {
+      const k = leaf.sans.join(' ');
+      if (seen.has(k) || !legal(leaf.sans)) continue;
+      // worth a line only if it teaches at least two more learner moves
+      const extra = leaf.sans.slice(l.sans.length).filter((_, i) => isLearnerPly(l.sans.length + i, o.side)).length;
+      if (extra < 2) continue;
+      seen.add(k);
+      withMasters.push({ name: openingName(leaf.sans)?.name ?? l.name, eco: openingName(leaf.sans)?.eco ?? l.eco, sans: leaf.sans, source: 'masters', games: leaf.games } as Line);
+      if (++added >= MAX_NEW) break;
+    }
+  }
+  linesOf.set(o.id, withMasters);
 }
 
 // learner positions
@@ -70,6 +117,10 @@ for (const o of OPENINGS) for (const l of linesOf.get(o.id)!) {
 interface Ev { k: string; lines: { uci: string; cp: number }[] }
 const cache = new Map<string, Ev>();
 if (existsSync(CACHE)) for (const l of readFileSync(CACHE, 'utf8').split('\n')) if (l) { const e = JSON.parse(l) as Ev; cache.set(e.k, e); }
+const workerCache = new Map<string, Ev>();
+for (const f of readdirSync(here).filter((x) => /^engine-cache\.jsonl\.\d+$/.test(x))) {
+  for (const l of readFileSync(here + f, 'utf8').split('\n')) if (l) { try { const e = JSON.parse(l) as Ev; workerCache.set(e.k, e); } catch { /* partial last line */ } }
+}
 const cpOf = (s: { cp?: number; mate?: number }) => (s.mate !== undefined ? (s.mate > 0 ? 10000 - s.mate : -10000 - s.mate) : s.cp ?? 0);
 
 const args = process.argv.slice(2);
@@ -77,12 +128,13 @@ if (args[0] === '--eval-only') {
   const [wi, wn] = [Number(args[1]), Number(args[2])];
   const engine = nodeEngine();
   await engine.whenReady();
-  const keys = [...todo.keys()].filter((k, i) => i % wn === wi && !cache.has(k));
+  const keys = [...todo.keys()].filter((k) => !cache.has(k) && !workerCache.has(k)).filter((_, i) => i % wn === wi);
   console.log('positions', todo.size, 'cached', cache.size, 'this worker', keys.length);
+  if (args[3] === '--count') process.exit(0);
   let n = 0;
   for (const k of keys) {
     const fen = todo.get(k)!;
-    const r = await engine.search(fen, { depth: 12 }, { multipv: Math.min(5, new Chess(fen).moves().length) });
+    const r = await engine.search(fen, { depth: Number(process.env.DEPTH ?? 12) }, { multipv: Math.min(5, new Chess(fen).moves().length) });
     const ev: Ev = { k, lines: r.lines.map((l) => ({ uci: l.pv[0], cp: cpOf(l.score) })) };
     appendFileSync(`${CACHE}.${wi}`, JSON.stringify(ev) + '\n');
     if (++n % 200 === 0) console.log(wi, n);
@@ -91,16 +143,19 @@ if (args[0] === '--eval-only') {
   process.exit(0);
 }
 // merge worker caches
-for (const f of readdirSync(here).filter((x) => /^engine-cache\.jsonl\.\d+$/.test(x))) {
-  for (const l of readFileSync(here + f, 'utf8').split('\n')) if (l) { const e = JSON.parse(l) as Ev; if (!cache.has(e.k)) { cache.set(e.k, e); appendFileSync(CACHE, l + '\n'); } }
-}
+for (const [k, e] of workerCache) if (!cache.has(k)) { cache.set(k, e); appendFileSync(CACHE, JSON.stringify(e) + '\n'); }
 
 // moves not in the top 5 need their own evaluation
 const engine = nodeEngine();
 await engine.whenReady();
 async function lossOf(fen: string, san: string): Promise<{ loss: number; best: string; bestCp: number }> {
-  const ev = cache.get(fenKey(fen));
-  if (!ev) throw new Error('no engine data for ' + fen);
+  let ev = cache.get(fenKey(fen));
+  if (!ev) {
+    // a worker was interrupted before saving this one: evaluate it now
+    const r = await engine.search(fen, { depth: 12 }, { multipv: Math.min(5, new Chess(fen).moves().length) });
+    ev = { k: fenKey(fen), lines: r.lines.map((l) => ({ uci: l.pv[0], cp: cpOf(l.score) })) };
+    cache.set(ev.k, ev); appendFileSync(CACHE, JSON.stringify(ev) + '\n');
+  }
   const c = new Chess(fen);
   const mv = c.move(san);
   const uci = mv.from + mv.to + (mv.promotion ?? '');
@@ -136,7 +191,7 @@ for (const o of OPENINGS) {
       } else eng.push(null);
       c.move(l.sans[i]);
     }
-    if (bad) { dropped++; if (l.source !== 'lichess') console.log('curated line dropped (weak learner move):', o.id, l.sans.join(' ')); continue; }
+    if (bad) { dropped++; if (l.source === 'main' || l.source === 'extra') console.log('curated line dropped (weak learner move):', o.id, l.sans.join(' ')); continue; }
     kept.push({ ...l, eng });
   }
   const stages = buildStages(kept, o.side);

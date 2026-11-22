@@ -9,20 +9,28 @@ export const QUIZ_PASS = 0.8;
 
 export interface OpeningData { id: string; side: 'w' | 'b'; lines: (Line & { eng: (null | { loss: number; best: string })[] })[]; stages: Stage[] }
 
-export async function stageRecords(openingId: string): Promise<Map<number, OpeningStageRecord>> {
+/**
+ * Records of an opening keyed by the CURRENT stage index. With `data`, records are matched by the
+ * stage's stable uid, so adding new lines (which renumbers stages) keeps progress on the right stage.
+ */
+export async function stageRecords(openingId: string, data?: OpeningData): Promise<Map<number, OpeningStageRecord>> {
   const rows = await db().openingStages.where('openingId').equals(openingId).toArray();
-  return new Map(rows.map((r) => [r.stage, r]));
+  if (!data || !data.stages.some((s) => s.uid)) return new Map(rows.map((r) => [r.stage, r]));
+  const byUid = new Map(data.stages.map((s, i) => [s.uid, i]));
+  const out = new Map<number, OpeningStageRecord>();
+  for (const r of rows) { const i = r.uid ? byUid.get(r.uid) : undefined; if (i !== undefined) out.set(i, { ...r, stage: i }); }
+  return out;
 }
 export const quizzesOf = (openingId: string) => db().openingQuizzes.where('openingId').equals(openingId).sortBy('at');
 export const allStageRecords = () => db().openingStages.toArray();
 
 /** Saves one run of a stage test. Passing = no mistakes in this run. */
-export async function recordStageTest(openingId: string, stage: number, mistakes: number, timeMs: number, now = Date.now()): Promise<OpeningStageRecord> {
-  const key = `${openingId}#${stage}`;
+export async function recordStageTest(openingId: string, stage: number, mistakes: number, timeMs: number, uid?: string, now = Date.now()): Promise<OpeningStageRecord> {
+  const key = uid ? `${openingId}#${uid}` : `${openingId}#${stage}`;
   const prev = await db().openingStages.get(key);
   const passed = mistakes === 0;
   const rec: OpeningStageRecord = {
-    key, openingId, stage,
+    key, openingId, stage, uid,
     completedAt: passed ? prev?.completedAt ?? now : prev?.completedAt ?? null,
     attempts: (prev?.attempts ?? 0) + 1,
     mistakes: (prev?.mistakes ?? 0) + mistakes,
@@ -62,13 +70,13 @@ export function quizDue(completedCount: number, quizzes: OpeningQuiz[]): boolean
   return !quizzes.some((q) => q.passed && q.upto >= milestone);
 }
 
-export async function recordQuiz(openingId: string, upto: number, results: { stage: number; ok: boolean }[], now = Date.now()): Promise<OpeningQuiz> {
+export async function recordQuiz(openingId: string, upto: number, results: { stage: number; ok: boolean; uid?: string }[], now = Date.now()): Promise<OpeningQuiz> {
   const correct = results.filter((r) => r.ok).length;
   const q: OpeningQuiz = { openingId, at: now, upto, items: results.length, correct, passed: correct / results.length >= QUIZ_PASS };
   await db().transaction('rw', db().openingQuizzes, db().openingStages, db().activity, async () => {
     q.id = await db().openingQuizzes.add(q);
     for (const r of results) if (!r.ok) {
-      const key = `${openingId}#${r.stage}`;
+      const key = r.uid ? `${openingId}#${r.uid}` : `${openingId}#${r.stage}`;
       const rec = await db().openingStages.get(key);
       if (rec) await db().openingStages.put({ ...rec, needsReview: true });
     }

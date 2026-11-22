@@ -77,6 +77,24 @@ export const SECTIONS: Section[] = [
   { id: 's_mate', categories: MATE },
 ];
 export const ALL_CATEGORIES = [...MAIN, ...ENDGAME, ...MATE];
+
+/** practice sets used by the middlegame/endgame lessons (not shown as sections) */
+export const PRACTICE: Category[] = [
+  { id: 'p_kingAttack', test: (p) => has(p, 'kingsideAttack', 'queensideAttack', 'attackingF2F7', 'exposedKing') && !has(p, 'endgame') },
+  { id: 'p_sacrifice', test: (p) => has(p, 'sacrifice') && !has(p, 'endgame') },
+  { id: 'p_quiet', test: (p) => has(p, 'quietMove') },
+  { id: 'p_defense', test: (p) => has(p, 'defensiveMove', 'equality') },
+  { id: 'p_calc', test: (p) => has(p, 'long', 'veryLong') && !has(p, 'mate') },
+  { id: 'p_deflection', test: (p) => has(p, 'deflection', 'attraction', 'interference', 'clearance', 'capturingDefender') },
+  { id: 'p_trapped', test: (p) => has(p, 'trappedPiece', 'hangingPiece') },
+  { id: 'p_advancedPawn', test: (p) => has(p, 'advancedPawn', 'promotion') },
+  { id: 'p_zugzwang', test: (p) => has(p, 'zugzwang') },
+  { id: 'p_pawnEnd', test: (p) => has(p, 'pawnEndgame') },
+  { id: 'p_rookEnd', test: (p) => has(p, 'rookEndgame') },
+  { id: 'p_queenEnd', test: (p) => has(p, 'queenEndgame', 'queenRookEndgame') },
+  { id: 'p_minorEnd', test: (p) => has(p, 'bishopEndgame', 'knightEndgame') },
+];
+export const INDEXED_CATEGORIES = [...ALL_CATEGORIES, ...PRACTICE];
 export const categoryById = (id: string) => ALL_CATEGORIES.find((c) => c.id === id) ?? MAIN[0];
 
 /** Themes that we explain after solving, and that the stats screen groups by. */

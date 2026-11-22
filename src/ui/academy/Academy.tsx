@@ -14,6 +14,7 @@ import {
 import { openingName } from '../../lib/analysis/book';
 import { playMoveSound } from '../../lib/sound';
 import type { OpeningQuiz, OpeningStageRecord } from '../../lib/storage/db';
+import { TopicList } from '../lessons/Lessons';
 
 // ---------- data ----------
 const cache = new Map<string, Promise<OpeningData>>();
@@ -52,18 +53,19 @@ function useBoardProps() {
 export function AcademyHome() {
   const { t, settings, go, dataVersion } = useApp();
   const L = settings.lang;
-  const [side, setSide] = useState<'w' | 'b'>('w');
+  const [side, setSide] = useState<'w' | 'b' | 'mg' | 'eg'>('w');
   const [index, setIndex] = useState<IndexRow[] | null>(null);
   const [recs, setRecs] = useState<OpeningStageRecord[]>([]);
   useEffect(() => { loadIndex().then((d) => setIndex(d.openings)); allStageRecords().then(setRecs); }, [dataVersion]);
   return (
     <div className="screen">
       <h1>{t('ac_title')}</h1>
-      <Segmented value={side} onChange={(v) => setSide(v as 'w' | 'b')} options={[['w', t('ac_white')], ['b', t('ac_black')]]} />
-      <div className="ac-list" data-testid="ac-list">
+      <Segmented value={side} onChange={(v) => setSide(v as 'w' | 'b' | 'mg' | 'eg')} options={[['w', t('ac_whiteShort')], ['b', t('ac_blackShort')], ['mg', t('ls_mg')], ['eg', t('ls_eg')]]} />
+      {(side === 'mg' || side === 'eg') && <TopicList section={side} />}
+      {(side === 'w' || side === 'b') && <div className="ac-list" data-testid="ac-list">
         {OPENINGS.filter((o) => o.side === side).map((o) => {
           const row = index?.find((r) => r.id === o.id);
-          const mine = recs.filter((r) => r.openingId === o.id);
+          const mine = recs.filter((r) => r.openingId === o.id && r.uid);
           const done = mine.filter((r) => r.completedAt).length;
           const review = mine.filter((r) => r.needsReview).length;
           const n = row?.stages ?? 0;
@@ -81,8 +83,8 @@ export function AcademyHome() {
             </button>
           );
         })}
-      </div>
-      <p className="muted tiny">{t('ac_source')}</p>
+      </div>}
+      {(side === 'w' || side === 'b') && <p className="muted tiny">{t('ac_source')}</p>}
     </div>
   );
 }
@@ -100,8 +102,7 @@ export function OpeningPage({ id }: { id: string }) {
   const [page, setPage] = useState(0);
   const bp = useBoardProps();
   useEffect(() => {
-    loadOpening(id).then(setData);
-    stageRecords(id).then(setRecs);
+    loadOpening(id).then((d) => { setData(d); stageRecords(id, d).then(setRecs); });
     quizzesOf(id).then(setQuizzes);
   }, [id, dataVersion]);
   const main = def.main.split(' ');
@@ -245,7 +246,7 @@ export function StageScreen({ id, stage }: { id: string; stage: number }) {
   const startTest = () => { setMode('test'); setPly(st.from); setMistakes(0); setFb({ kind: 'info', lines: [t('ac_testHint')] }); setArrow(null); t0.current = Date.now(); };
 
   const finishTest = async (m: number) => {
-    const rec = await recordStageTest(id, stage, m, Date.now() - t0.current);
+    const rec = await recordStageTest(id, stage, m, Date.now() - t0.current, st.uid);
     setLastRec(rec); setMode('result'); bumpData();
   };
 
@@ -327,7 +328,7 @@ export function StageScreen({ id, stage }: { id: string; stage: number }) {
           <div className="row gap wrap">
             {mistakes > 0 && <button className="btn primary" data-testid="ac-retry" onClick={startTest}>{t('ac_retryTest')}</button>}
             {mistakes === 0 && stage + 1 < data.stages.length && <button className="btn primary" data-testid="ac-next-stage" onClick={async () => {
-              const [recs, qs] = await Promise.all([stageRecords(id), quizzesOf(id)]);
+              const [recs, qs] = await Promise.all([stageRecords(id, data), quizzesOf(id)]);
               const doneN = [...recs.values()].filter((r) => r.completedAt).length;
               const nxt = nextStage(data, recs);
               go(quizDue(doneN, qs) ? { name: 'openingQuiz', id } : nxt < data.stages.length ? { name: 'openingStage', id, stage: nxt } : { name: 'opening', id });
@@ -351,13 +352,13 @@ export function QuizScreen({ id }: { id: string }) {
   const [items, setItems] = useState<QuizItem[]>([]);
   const [upto, setUpto] = useState(0);
   const [k, setK] = useState(0);
-  const [results, setResults] = useState<{ stage: number; ok: boolean }[]>([]);
+  const [results, setResults] = useState<{ stage: number; ok: boolean; uid?: string }[]>([]);
   const [shown, setShown] = useState<{ ok: boolean; lines: string[]; arrow?: [Square, Square] } | null>(null);
   const [done, setDone] = useState<OpeningQuiz | null>(null);
   const [played, setPlayed] = useState<string | null>(null);
   const start = async () => {
     const d = await loadOpening(id);
-    const recs = await stageRecords(id);
+    const recs = await stageRecords(id, d);
     const completed = [...recs.values()].filter((r) => r.completedAt).map((r) => r.stage);
     setData(d); setItems(makeQuiz(d, completed)); setUpto(completed.length); setK(0); setResults([]); setShown(null); setDone(null); setPlayed(null);
   };
@@ -374,7 +375,7 @@ export function QuizScreen({ id }: { id: string }) {
     const prefix = sans.slice(0, it.ply).join(' ');
     const ok = mv.san === want || data.lines.some((l) => l.sans.slice(0, it.ply).join(' ') === prefix && l.sans[it.ply] === mv.san);
     const m = new Chess(pos.fen()).move(want);
-    setResults((r) => [...r, { stage: it.stage, ok }]);
+    setResults((r) => [...r, { stage: it.stage, ok, uid: data.stages[it.stage].uid }]);
     if (ok) setPlayed(mv.after);
     setShown({ ok, lines: ok ? [t('ac_correct')] : [t('ac_wrong', { san: want }), ...explainOpeningMove(pos.fen(), want, L, { engine: data.lines[it.line].eng[it.ply] })], arrow: ok ? undefined : [m.from as Square, m.to as Square] });
     return ok;

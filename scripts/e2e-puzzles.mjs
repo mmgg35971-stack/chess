@@ -2,6 +2,7 @@
 import { createRequire } from 'node:module';
 import { execSync, spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { Chess } from 'chess.js';
 
 const require = createRequire(execSync('npm root -g').toString().trim() + '/');
@@ -11,14 +12,17 @@ const BASE = `http://localhost:${PORT}/`;
 mkdirSync('test-shots', { recursive: true });
 
 // puzzle lookup by the position shown on the board (after the opponent's set-up move)
-const byFen = new Map();
-for (const f of readdirSync('public/data/puzzles').filter((x) => x.endsWith('.txt'))) {
-  for (const line of readFileSync('public/data/puzzles/' + f, 'utf8').split('\n')) {
-    const [id, fen, moves, rating] = line.split('|');
-    const c = new Chess(fen); const m = moves.split(' ');
-    c.move({ from: m[0].slice(0, 2), to: m[0].slice(2, 4), promotion: m[0][4] });
-    byFen.set(c.fen(), { id, moves: m, rating: +rating });
+// the library has ~1M puzzles in gzip chunks: find a puzzle by the id the page shows
+const texts = readdirSync('public/data/puzzles').filter((x) => /^\d+\.gz$/.test(x)).map((f) => gunzipSync(readFileSync('public/data/puzzles/' + f)).toString());
+function byId(id) {
+  for (const t of texts) {
+    const i = t.startsWith(id + '|') ? 0 : t.indexOf('\n' + id + '|');
+    if (i < 0) continue;
+    const line = t.slice(i === 0 ? 0 : i + 1, t.indexOf('\n', i + 1) < 0 ? undefined : t.indexOf('\n', i + 1));
+    const [pid, fen, moves, rating] = line.split('|');
+    return { id: pid, fen, moves: moves.split(' '), rating: +rating };
   }
+  return null;
 }
 
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
@@ -70,7 +74,11 @@ async function currentPuzzle() {
     for (let w = 0; w < 60 && !p; w++) {
       await page.waitForTimeout(250);
       const ready = /دورك/.test((await page.getByTestId('pz-feedback').textContent()) ?? '');
-      f = await boardFen(); p = ready ? byFen.get(f) : null;
+      if (!ready) continue;
+      f = await boardFen();
+      const q = byId(await page.getByTestId('pz-top').getAttribute('data-puzzle-id'));
+      // the board must show the position after the set-up move
+      if (q) { const c = new Chess(q.fen); const m = q.moves[0]; c.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] }); if (c.fen() === f) p = q; }
     }
     if (p && !p.moves.some((u, k) => k % 2 === 1 && u.length === 5)) return { ...p, color: f.split(' ')[1] };
     await page.getByTestId('pz-skip').click();

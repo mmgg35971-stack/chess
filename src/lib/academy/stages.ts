@@ -1,7 +1,7 @@
 // Splits an opening's theory lines into learning stages (spec 8.4): each stage shows a position,
 // then teaches 3–6 of the learner's moves together with the expected replies.
 
-export interface Line { name: string; eco: string; sans: string[]; source: 'main' | 'extra' | 'lichess' }
+export interface Line { name: string; eco: string; sans: string[]; source: 'main' | 'extra' | 'lichess' | 'masters'; /** master games reaching the end of a 'masters' line */ games?: number }
 export interface Stage {
   /** index of the line in the opening's line list */
   line: number;
@@ -11,6 +11,16 @@ export interface Stage {
   to: number;
   /** learner plies of the stage that are new (not taught by an earlier stage) */
   fresh: number[];
+  /** stable id (does not change when lines are added), used to store progress */
+  uid?: string;
+}
+
+/** short stable hash (FNV-1a, base 36) */
+export function stageUid(sans: string[], from: number, to: number): string {
+  let h = 0x811c9dc5;
+  const s = from + ':' + sans.slice(0, to + 1).join(' ');
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36);
 }
 
 export const isLearnerPly = (ply: number, side: 'w' | 'b') => (ply % 2 === 0) === (side === 'w');
@@ -39,7 +49,8 @@ export function buildStages(lines: Line[], side: 'w' | 'b', minMoves = 3, chunk 
       while (count < minMoves && firstIdx > 0) { firstIdx--; count++; }
       const firstPly = learner[firstIdx];
       const lastPly = g[g.length - 1];
-      stages.push({ line: li, from: firstPly, to: Math.min(lastPly + 1, ln.sans.length - 1), fresh: g });
+      const to = Math.min(lastPly + 1, ln.sans.length - 1);
+      stages.push({ line: li, from: firstPly, to, fresh: g, uid: stageUid(ln.sans, firstPly, to) });
       for (const p of g) known.add(ln.sans.slice(0, p + 1).join(' '));
     }
   });

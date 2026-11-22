@@ -93,6 +93,8 @@ export interface OpeningStageRecord {
   key: string; // `${openingId}#${stage}`
   openingId: string;
   stage: number;
+  /** stable stage id (see stageUid); missing in records made before it existed */
+  uid?: string;
   completedAt: number | null;
   /** test attempts (each full run of the stage test) */
   attempts: number;

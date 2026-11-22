@@ -81,11 +81,11 @@ await step('academy home: >10 openings for White and for Black', async () => {
   await page.getByTestId('nav-openings').click();
   await page.getByTestId('ac-list').waitFor();
   const w = await page.locator('.ac-card').count();
-  await page.getByRole('radio', { name: 'افتتاحيات الأسود' }).click();
+  await page.getByRole('radio', { name: 'الأسود', exact: true }).click();
   const b = await page.locator('.ac-card').count();
   expectTrue(w > 10 && b > 10, `white ${w}, black ${b}`);
   await page.screenshot({ path: 'test-shots/30-academy-black.png', fullPage: true });
-  await page.getByRole('radio', { name: 'افتتاحيات الأبيض' }).click();
+  await page.getByRole('radio', { name: 'الأبيض', exact: true }).click();
 });
 
 await step('opening page: ECO, history, plans, players, main line with explanations, stages', async () => {
@@ -140,6 +140,47 @@ await step('stages 2–10, then the review test of 7–15 positions', async () =
   const stats = await page.getByTestId('ac-stats').textContent();
   expectTrue(stats.includes('10 من'), 'progress saved: ' + stats);
   await page.screenshot({ path: 'test-shots/33-opening-progress.png', fullPage: true });
+});
+
+await step('endgame lesson: concept card, guided moves, test with an engine-judged mistake, practice', async () => {
+  await page.getByTestId('nav-openings').click();
+  await page.getByRole('radio', { name: 'النهايات', exact: true }).click();
+  await page.getByTestId('topic-eg-opposition').click();
+  const tp = await page.getByTestId('topic-page').textContent();
+  expectTrue(tp.includes('المعارضة') && tp.includes('كيف تردعه'), 'topic page');
+  await page.getByTestId('lesson-opposition-1').click();
+  expectTrue((await page.getByTestId('ls-note').textContent()).includes('Ke3'), 'first note explains Ke3');
+  while (await page.getByTestId('ls-next').isVisible()) await page.getByTestId('ls-next').click();
+  await page.getByTestId('ls-start-test').click();
+  const line = 'Ke3 Kd5 Kf4 Ke6 Ke4 Kd6 Kf5 Ke7 Ke5 Kf7 Kd6'.split(' ');
+  const play = async (wrong) => {
+    const c = new Chess('8/8/8/4k3/8/8/4PK2/8 w - - 0 1');
+    for (let i = 0; i < line.length; i++) {
+      if (i % 2 === 0) {
+        await page.waitForFunction(() => document.querySelector('svg.board')?.getAttribute('data-fen')?.split(' ')[1] === 'w', null, { timeout: 8000 });
+        if (wrong && i === 0) {
+          await drag('f2', 'f3'); // Kf3? only draws
+          await page.waitForFunction(() => /ليست نقلة الدرس/.test(document.querySelector('[data-testid=ls-feedback]')?.textContent ?? ''), null, { timeout: 20000 });
+        }
+        const m = new Chess(c.fen()).move(line[i]);
+        await drag(m.from, m.to);
+        await page.waitForTimeout(800);
+      }
+      c.move(line[i]);
+    }
+    await page.getByTestId('ls-result').waitFor({ timeout: 8000 });
+  };
+  await play(true);
+  expectTrue((await page.getByTestId('ls-result').textContent()).includes('أعد الاختبار'), 'mistake → retake');
+  await page.getByTestId('ls-retry').click();
+  await play(false);
+  expectTrue((await page.getByTestId('ls-result').textContent()).includes('أتقنت'), 'mastered');
+  await page.screenshot({ path: 'test-shots/34-lesson.png', fullPage: true });
+  await page.getByTestId('ls-back').click();
+  await page.getByTestId('topic-practice').click();
+  await page.getByTestId('pz-top').waitFor({ timeout: 15000 });
+  const th = await page.getByTestId('pz-top').getAttribute('data-puzzle-id');
+  expectTrue(!!th, 'practice puzzle opened');
 });
 
 await step('no request left the device; no page errors', async () => {

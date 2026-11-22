@@ -13,6 +13,8 @@ export type Route =
   | { name: 'opening'; id: string }
   | { name: 'openingStage'; id: string; stage: number }
   | { name: 'openingQuiz'; id: string }
+  | { name: 'topic'; id: string }
+  | { name: 'lesson'; id: string }
   | { name: 'settings' }
   | { name: 'play'; resume?: boolean }
   | { name: 'games'; openId?: number }

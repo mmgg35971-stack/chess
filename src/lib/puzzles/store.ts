@@ -1,25 +1,21 @@
-// Offline puzzle library (~100k puzzles). index.json holds every rating and a bitset per category;
-// the puzzles themselves sit in text files of 1000 rows (sorted by rating) loaded only when needed,
+// Offline puzzle library (≈1 million puzzles). The index holds every rating (Uint16) and a bitset per
+// category; the puzzles sit in gzip files of 1000 rows (sorted by rating) loaded only when needed,
 // so the app never parses the whole library.
 import type { Puzzle } from './categories';
+import { BANDS } from './glicko2';
 
-export interface PuzzleIndex { n: number; chunk: number; ratings: Int16Array; cats: Record<string, Uint8Array>; source: string }
-type FetchText = (path: string) => Promise<string>;
+export interface PuzzleIndex { n: number; chunk: number; ratings: Uint16Array; cats: Record<string, Uint8Array>; counts: Record<string, number[]>; source: string }
+/** returns the (already decompressed) bytes of a file in the library */
+export type FetchBytes = (path: string) => Promise<Uint8Array>;
 
-function b64(s: string): Uint8Array {
-  const bin = typeof atob === 'function' ? atob(s) : Buffer.from(s, 'base64').toString('binary');
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
+const text = (b: Uint8Array) => new TextDecoder().decode(b);
 
-export function decodeIndex(raw: { n: number; chunk: number; ratingDeltas: string; cats: Record<string, string>; source: string }): PuzzleIndex {
-  const ratings = new Int16Array(raw.n);
-  let r = 0, i = 0;
-  for (const d of raw.ratingDeltas.split(',')) { r += Number(d); ratings[i++] = r; }
+export function decodeIndex(meta: { n: number; chunk: number; cats: string[]; counts: Record<string, number[]>; source: string }, ratingBytes: Uint8Array, catBytes: Uint8Array): PuzzleIndex {
+  const ratings = new Uint16Array(ratingBytes.buffer.slice(ratingBytes.byteOffset, ratingBytes.byteOffset + meta.n * 2));
+  const B = Math.ceil(meta.n / 8);
   const cats: Record<string, Uint8Array> = {};
-  for (const [k, v] of Object.entries(raw.cats)) cats[k] = b64(v);
-  return { n: raw.n, chunk: raw.chunk, ratings, cats, source: raw.source };
+  meta.cats.forEach((id, k) => { cats[id] = catBytes.subarray(k * B, (k + 1) * B); });
+  return { n: meta.n, chunk: meta.chunk, ratings, cats, counts: meta.counts, source: meta.source };
 }
 
 export const inCat = (idx: PuzzleIndex, cat: string, i: number) => cat === 'c_random' || !!((idx.cats[cat]?.[i >> 3] ?? 0) >> (i & 7) & 1);
@@ -32,6 +28,12 @@ export function lowerBound(idx: PuzzleIndex, r: number): number {
 }
 
 export function countIn(idx: PuzzleIndex, cat: string, band?: { min: number; max: number }): number {
+  const pre = idx.counts[cat];
+  if (pre) {
+    if (!band) return pre.reduce((a, b) => a + b, 0);
+    const k = BANDS.findIndex((b) => b.min === band.min && b.max === band.max);
+    if (k >= 0) return pre[k];
+  }
   const a = band ? lowerBound(idx, band.min) : 0, b = band ? lowerBound(idx, band.max) : idx.n;
   if (cat === 'c_random') return b - a;
   let c = 0;
@@ -60,17 +62,18 @@ export function parseLine(line: string): Puzzle {
 export class PuzzleStore {
   private idx: Promise<PuzzleIndex> | null = null;
   private chunks = new Map<number, Promise<string[]>>();
-  constructor(private fetchText: FetchText) {}
+  constructor(private fetchBytes: FetchBytes) {}
   index(): Promise<PuzzleIndex> {
-    this.idx ??= this.fetchText('index.json').then((t) => decodeIndex(JSON.parse(t)));
+    this.idx ??= Promise.all([this.fetchBytes('index.json'), this.fetchBytes('ratings.gz'), this.fetchBytes('cats.gz')])
+      .then(([m, r, c]) => decodeIndex(JSON.parse(text(m)), r, c));
     return this.idx;
   }
   async get(i: number): Promise<Puzzle> {
     const idx = await this.index();
     const c = Math.floor(i / idx.chunk);
     if (!this.chunks.has(c)) {
-      if (this.chunks.size > 8) this.chunks.delete(this.chunks.keys().next().value!);
-      this.chunks.set(c, this.fetchText(`${c}.txt`).then((t) => t.split('\n')));
+      if (this.chunks.size > 12) this.chunks.delete(this.chunks.keys().next().value!);
+      this.chunks.set(c, this.fetchBytes(`${c}.gz`).then((b) => text(b).split('\n')));
     }
     return parseLine((await this.chunks.get(c)!)[i % idx.chunk]);
   }
@@ -80,7 +83,8 @@ export class PuzzleStore {
    */
   async pick(cat: string, target: number, attempted: Set<string>, rng = Math.random, band?: { min: number; max: number }): Promise<Puzzle | null> {
     const idx = await this.index();
-    const near = nearest(idx, cat, target, 400, band);
+    // start from a random offset among equally rated rows, so two users of the same rating get different puzzles
+    const near = nearest(idx, cat, target + Math.round((rng() - 0.5) * 40), 400, band);
     if (!near.length) return null;
     const fresh: Puzzle[] = [];
     for (const i of near) {
@@ -91,4 +95,14 @@ export class PuzzleStore {
     if (fresh.length) return fresh[Math.floor(rng() * fresh.length)];
     return this.get(near[Math.floor(rng() * Math.min(25, near.length))]);
   }
+}
+
+/** Browser/WebView loader: files are gzip; decompress unless the server already did. */
+export async function fetchGz(base: string, path: string): Promise<Uint8Array> {
+  const r = await fetch(base + path);
+  if (!r.ok) throw new Error('puzzle data ' + path);
+  const buf = new Uint8Array(await r.arrayBuffer());
+  if (buf[0] !== 0x1f || buf[1] !== 0x8b) return buf;
+  const ds = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(ds).arrayBuffer());
 }

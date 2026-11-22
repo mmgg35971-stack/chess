@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Chess } from 'chess.js';
 import { OPENINGS } from '../src/lib/academy/defs';
 import { INFO } from '../src/lib/academy/info';
-import { buildStages, stagePlies, isLearnerPly, type Line } from '../src/lib/academy/stages';
+import { buildStages, stagePlies, isLearnerPly, stageUid, type Line } from '../src/lib/academy/stages';
 import { explainOpeningMove } from '../src/lib/academy/explain';
 import { makeQuiz, quizDue, recordStageTest, recordQuiz, stageRecords, quizzesOf, nextStage, type OpeningData } from '../src/lib/academy/progress';
 import { AcademyDB, useDb } from '../src/lib/storage/db';
@@ -49,10 +49,12 @@ describe('academy content', () => {
         expect(n).toBeLessThanOrEqual(6);
         expect(isLearnerPly(s.from, o.side)).toBe(true);
         expect(s.to).toBeLessThan(d.lines[s.line].sans.length);
+        expect(s.uid).toBe(stageUid(d.lines[s.line].sans, s.from, s.to));
       }
+      expect(new Set(d.stages.map((s) => s.uid)).size).toBe(d.stages.length);
       total += d.stages.length;
     }
-    expect(total).toBeGreaterThan(1000);
+    expect(total).toBeGreaterThan(3500);
   }, 120000);
 });
 
@@ -99,6 +101,14 @@ describe('progress, review tests', () => {
     r = await recordStageTest('italian', 0, 0, 1000);
     expect(r.needsReview).toBe(false); // clean review
     expect(nextStage(d, await stageRecords('italian'))).toBe(1);
+  });
+  it('progress follows the stage when stages are renumbered (stable uid)', async () => {
+    const d = load('ruy-lopez');
+    const s = d.stages[5];
+    await recordStageTest('ruy-lopez', 5, 0, 100, s.uid);
+    const shifted = { ...d, stages: [d.stages[0], { ...d.stages[1], uid: 'new' }, ...d.stages.slice(1)] };
+    const recs = await stageRecords('ruy-lopez', shifted);
+    expect([...recs.keys()]).toEqual([6]);
   });
   it('a 7–15 move review test is due every 10 stages until passed', async () => {
     const d = load('sicilian');

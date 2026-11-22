@@ -22,8 +22,17 @@ jobs:
       - name: Install
         run: npm ci
 
+      # ~1 million puzzles are built from scripts/puzzles/*.csv(.gz) instead of being stored twice in git
+      - name: Build puzzle library
+        run: npx tsx scripts/puzzles/build-puzzles.ts
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
       - name: Unit tests (rules, PGN, storage, Stockfish)
         run: npm test
+
+      - name: Verify middlegame/endgame lessons with Stockfish
+        run: npx tsx scripts/lessons/check-lessons.ts
 
       - name: Build web app (fails on any external URL)
         run: npm run build
