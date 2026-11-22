@@ -155,6 +155,13 @@ await step('resign → summary with accuracy, label table; analysis screen + ful
   await page.waitForFunction(() => document.querySelector('[data-testid=run-analysis]')?.textContent?.includes('إعادة'), null, { timeout: 120000 });
   await page.getByTestId('a-next').click();
   await page.getByTestId('move-label').waitFor();
+  const lbl = await page.getByTestId('move-label').textContent();
+  console.log('   first move label:', lbl);
+  expectTrue(/نظرية/.test(lbl), '1.e4 should be Book: ' + lbl);
+  expectTrue((await page.getByTestId('opening-name').textContent()).length > 5, 'opening name shown');
+  const gr = await page.getByTestId('gr-w').textContent();
+  console.log('   game rating (white):', gr);
+  expectTrue(/\d{3,4} ±\d+/.test(gr) || /10/.test(gr), 'game rating or the 10-move rule shown');
   await page.getByTestId('evalbar').waitFor();
   await page.screenshot({ path: 'test-shots/15-analysis.png', fullPage: true });
   await page.getByTestId('export-annotated').click();
@@ -182,6 +189,21 @@ await step('training mode: eval bar, hint (piece then arrow), top lines, undo', 
   await page.getByRole('button', { name: 'تراجع' }).click();
   await page.waitForFunction((f) => document.querySelector('svg.board')?.getAttribute('data-fen') !== f, before);
   expectTrue((await fen()).startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP'), 'undo back to start');
+});
+
+await step('imported real Lichess game: full analysis uses the PGN ratings for Game Rating', async () => {
+  await page.getByTestId('nav-home').click();
+  await page.getByTestId('open-history').click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByTestId('import-pgn').click()]);
+  await chooser.setFiles('tests/fixtures-lichess-game.pgn');
+  await page.getByTestId('game-list').locator('li', { hasText: 'مستوردة' }).first().click();
+  await page.getByTestId('open-analysis').click();
+  await page.getByTestId('run-analysis').click();
+  await page.waitForFunction(() => document.querySelector('[data-testid=run-analysis]')?.textContent?.includes('إعادة'), null, { timeout: 240000 });
+  const w = await page.getByTestId('gr-w').textContent(), b = await page.getByTestId('gr-b').textContent();
+  console.log('   imported game ratings:', w, '|', b);
+  expectTrue(/\d{3,4} ±\d+/.test(w) && /\d{3,4} ±\d+/.test(b), 'both game ratings shown');
+  await page.screenshot({ path: 'test-shots/17-imported-analysis.png', fullPage: true });
 });
 
 await step('no request left the device; no page errors', async () => {

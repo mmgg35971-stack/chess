@@ -1,6 +1,23 @@
-import { winProbability, type Score } from '../engine/uci';
+import { expectedPoints } from './expected';
+import type { Score } from '../engine/uci';
 
+/**
+ * Move classification following the rules Chess.com publishes for its
+ * Expected Points model (Classification V2):
+ *   Best = engine's top move; Excellent ≤ 0.02 expected points lost;
+ *   Good ≤ 0.05; Inaccuracy ≤ 0.10; Mistake ≤ 0.20; Blunder > 0.20.
+ *   Brilliant = a good piece sacrifice, best or nearly best, not leaving you
+ *   worse and not already completely winning; more leeway for newer players.
+ *   Great = critical to the result: the only good move, or the move that turns
+ *   losing→equal / equal→winning; more generous for newer players.
+ *   Miss = failing to take advantage of the opponent's mistake, losing the
+ *   chance to reach a winning position.
+ *   Book = a known opening move.
+ * Chess.com's exact formula and rating curves are not public; ours are fitted
+ * on real rated games (see expected.ts). Key 'missedWin' is the "Miss" label.
+ */
 export type MoveLabel =
+  | 'book'
   | 'brilliant'
   | 'great'
   | 'best'
@@ -12,116 +29,127 @@ export type MoveLabel =
   | 'blunder';
 
 export const LABEL_ORDER: MoveLabel[] = [
-  'brilliant', 'great', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'missedWin', 'blunder',
+  'brilliant', 'great', 'best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'missedWin', 'blunder',
 ];
 
-/**
- * Thresholds are expressed as loss of expected score (win probability, 0..1)
- * for the side that moved. They are adjustable (settings → strictness).
- */
 export interface Thresholds {
   excellent: number;
   good: number;
   inaccuracy: number;
   mistake: number;
-  /** min share of expected score the best line must keep over the 2nd for "great" */
-  onlyMoveGap: number;
-  /** "missed win": winning before (>= this) … */
-  winningBefore: number;
-  /** … and no longer winning after (< this) */
-  notWinningAfter: number;
-  /** sacrifice must be at least this much material (pawn units) */
-  sacrificeMin: number;
+  /** expected points at or above which a position counts as winning */
+  winning: number;
+  /** at or below which it counts as losing */
+  losing: number;
 }
 
+/** "standard" = the published Chess.com ranges. */
 export const STRICTNESS: Record<'lenient' | 'standard' | 'strict', Thresholds> = {
-  lenient: { excellent: 0.03, good: 0.07, inaccuracy: 0.13, mistake: 0.25, onlyMoveGap: 0.2, winningBefore: 0.85, notWinningAfter: 0.6, sacrificeMin: 2 },
-  standard: { excellent: 0.02, good: 0.05, inaccuracy: 0.1, mistake: 0.2, onlyMoveGap: 0.15, winningBefore: 0.8, notWinningAfter: 0.6, sacrificeMin: 2 },
-  strict: { excellent: 0.01, good: 0.03, inaccuracy: 0.07, mistake: 0.15, onlyMoveGap: 0.12, winningBefore: 0.75, notWinningAfter: 0.6, sacrificeMin: 2 },
+  lenient: { excellent: 0.03, good: 0.07, inaccuracy: 0.13, mistake: 0.25, winning: 0.8, losing: 0.2 },
+  standard: { excellent: 0.02, good: 0.05, inaccuracy: 0.1, mistake: 0.2, winning: 0.8, losing: 0.2 },
+  strict: { excellent: 0.01, good: 0.03, inaccuracy: 0.07, mistake: 0.15, winning: 0.8, losing: 0.2 },
 };
 
 export interface ClassifyInput {
   mover: 'w' | 'b';
-  /** evaluation of the position before the move with best play (White POV) */
+  /** player's rating used by the expected-points model */
+  rating: number;
+  /** White-POV evaluation of the position before the move with best play */
   bestScore: Score;
-  /** evaluation after the played move (White POV) */
+  /** White-POV evaluation after the played move */
   playedScore: Score;
-  /** evaluation of the engine's 2nd choice (White POV), if known */
+  /** White-POV evaluation of the engine's 2nd choice */
   secondScore?: Score | null;
-  /** the played move is the engine's first choice */
   isBest: boolean;
-  /** the mover gives up >= sacrificeMin material in the forcing line after the move */
+  /** material (pawn units) the mover is down after its own next reply in the engine line */
   sacrificeAmount: number;
-  /** recapture on the square the opponent just captured on */
+  /** a piece (not only pawns) is given up */
+  pieceSacrifice: boolean;
   isRecapture: boolean;
   legalMoves: number;
+  /** the position after the move is a known opening position (and the game was in book so far) */
+  inBook: boolean;
+  /** expected points the opponent lost with their previous move (null if unknown) */
+  opponentPrevLoss: number | null;
+  /** mover's expected points before the opponent's previous move */
+  epBeforeOpponentMove: number | null;
 }
 
 export interface ClassifyResult {
   label: MoveLabel;
-  /** loss of expected score for the mover, 0..1 */
+  /** expected points lost by the mover, 0..1 */
   loss: number;
-  wpBefore: number;
-  wpAfter: number;
+  epBefore: number;
+  epAfter: number;
   accuracy: number;
 }
 
-export function moverWp(s: Score, mover: 'w' | 'b'): number {
-  const w = winProbability(s);
-  return mover === 'w' ? w : 1 - w;
-}
-
-/** Lichess-style per-move accuracy from the loss of win percentage. */
+/** Per-move accuracy from expected points lost (Lichess-style curve on a 0..100 scale). */
 export function moveAccuracy(loss: number): number {
   const pct = Math.max(0, loss) * 100;
   const a = 103.1668 * Math.exp(-0.04354 * pct) - 3.1669;
   return Math.max(0, Math.min(100, a));
 }
 
-export function classify(i: ClassifyInput, th: Thresholds = STRICTNESS.standard): ClassifyResult {
-  const wpBefore = moverWp(i.bestScore, i.mover);
-  const wpAfter = moverWp(i.playedScore, i.mover);
-  const loss = i.isBest ? 0 : Math.max(0, wpBefore - wpAfter);
-  const accuracy = moveAccuracy(loss);
-  let label: MoveLabel;
+/** How generous the special labels are: 1 for new players → 0 for masters. */
+function leeway(rating: number) {
+  return Math.max(0, Math.min(1, (2200 - rating) / 1400));
+}
 
-  if (loss <= th.excellent) {
+export function classify(i: ClassifyInput, th: Thresholds = STRICTNESS.standard): ClassifyResult {
+  const ep = (s: Score) => expectedPoints(s, i.mover, i.rating);
+  const epBefore = ep(i.bestScore);
+  const epAfter = i.isBest ? epBefore : ep(i.playedScore);
+  const loss = Math.max(0, epBefore - epAfter);
+  const accuracy = moveAccuracy(loss);
+  const lw = leeway(i.rating);
+
+  if (i.inBook && loss <= th.good) return { label: 'book', loss, epBefore, epAfter, accuracy };
+
+  let label: MoveLabel;
+  if (i.isBest || loss <= th.excellent) {
     label = i.isBest ? 'best' : 'excellent';
-    // Brilliant: a real, sound sacrifice — the engine still rates the position
-    // well for the mover, and it was not already completely winning.
-    const forcesMate = (i.mover === 'w' ? (i.playedScore.mate ?? 0) > 0 : (i.playedScore.mate ?? 0) < 0);
-    const secondAlsoMates = !!i.secondScore && (i.mover === 'w' ? (i.secondScore.mate ?? 0) > 0 : (i.secondScore.mate ?? 0) < 0);
-    const fasterMate = forcesMate && (!secondAlsoMates || Math.abs(i.playedScore.mate!) < Math.abs(i.secondScore!.mate!));
-    const onlyWay = !!i.secondScore && wpBefore - moverWp(i.secondScore, i.mover) >= th.onlyMoveGap;
-    if (
-      i.sacrificeAmount >= th.sacrificeMin &&
-      wpAfter >= 0.5 &&
-      !i.isRecapture &&
-      // not already decided — unless the sacrifice is the only way / the forced mate
-      (wpBefore < 0.95 || onlyWay || fasterMate)
-    ) {
+    const epSecond = i.secondScore ? ep(i.secondScore) : null;
+
+    // Brilliant: a good piece sacrifice (newer players: any real sacrifice of 2+ points)
+    const sacEnough = i.sacrificeAmount >= 2 && (i.pieceSacrifice || lw > 0.6);
+    const notBadAfter = epAfter >= 0.45;
+    // the sacrifice is the fastest forced mate (the alternatives mate slower or not at all)
+    const moverMate = (sc: Score | null | undefined) => (sc?.mate !== undefined ? sc.mate * (i.mover === 'w' ? 1 : -1) : null);
+    const pm = moverMate(i.playedScore), sm = moverMate(i.secondScore);
+    const fasterMate = pm !== null && pm > 0 && (sm === null || sm <= 0 || pm < sm);
+    const alreadyWinning = epBefore >= 0.97 && !(epSecond !== null && epSecond < th.winning) && !fasterMate;
+    if (sacEnough && notBadAfter && !alreadyWinning && !i.isRecapture) {
       label = 'brilliant';
-    } else if (i.isBest && i.secondScore && i.legalMoves > 1 && !i.isRecapture) {
-      // Great: proven only good move — the 2nd best line is clearly worse.
-      const wpSecond = moverWp(i.secondScore, i.mover);
-      if (wpBefore - wpSecond >= th.onlyMoveGap && wpBefore < 0.97) label = 'great';
+    } else if (i.isBest && epSecond !== null && i.legalMoves > 1 && !i.isRecapture) {
+      // Great: critical — the alternative changes the outcome category and is far worse
+      const gapNeeded = 0.2 - 0.08 * lw; // 0.20 for masters … 0.12 for beginners
+      const cat = (e: number) => (e >= th.winning ? 2 : e <= th.losing ? 0 : 1);
+      const onlyMove = epBefore - epSecond >= gapNeeded && cat(epSecond) < cat(epBefore);
+      // turning the result: before the opponent's last move we were worse off than now
+      const turned =
+        i.epBeforeOpponentMove !== null &&
+        cat(epAfter) > cat(i.epBeforeOpponentMove) &&
+        epBefore - epSecond >= gapNeeded * 0.75;
+      if ((onlyMove || turned) && epBefore < 0.99) label = 'great';
     }
   } else if (loss <= th.good) {
     label = 'good';
   } else {
-    const missed = wpBefore >= th.winningBefore && wpAfter < th.notWinningAfter;
-    if (missed && loss > th.inaccuracy) label = 'missedWin';
+    // Miss: the opponent just erred, we could reach a winning position, and we did not
+    const opponentErred = (i.opponentPrevLoss ?? 0) >= th.inaccuracy;
+    const couldWin = epBefore >= th.winning && (i.epBeforeOpponentMove === null || i.epBeforeOpponentMove < th.winning);
+    if (opponentErred && couldWin && epAfter < th.winning) label = 'missedWin';
     else if (loss <= th.inaccuracy) label = 'inaccuracy';
     else if (loss <= th.mistake) label = 'mistake';
     else label = 'blunder';
   }
-  return { label, loss, wpBefore, wpAfter, accuracy };
+  return { label, loss, epBefore, epAfter, accuracy };
 }
 
 export function gameAccuracy(accs: number[]): number | null {
   if (!accs.length) return null;
   const mean = accs.reduce((a, b) => a + b, 0) / accs.length;
-  // Blend with the harmonic mean so a few bad moves pull accuracy down (as Lichess does).
   const harm = accs.length / accs.reduce((a, b) => a + 1 / Math.max(b, 1), 0);
   return Math.round(((mean + harm) / 2) * 10) / 10;
 }

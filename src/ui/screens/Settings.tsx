@@ -45,6 +45,7 @@ function pickImage(): Promise<string | null> {
 export function Settings() {
   const { t, settings, setSettings, profile, refreshProfile, toast, bumpData } = useApp();
   const [name, setName] = useState(profile?.name ?? '');
+  const [rating, setRating] = useState(profile?.rating ? String(profile.rating) : '');
   const [engineName, setEngineName] = useState('');
   useEffect(() => setName(profile?.name ?? ''), [profile?.name]);
   useEffect(() => { getEngine().whenReady().then(() => setEngineName(getEngine().name)); }, []);
@@ -57,7 +58,8 @@ export function Settings() {
   );
 
   const saveName = async () => {
-    await updateProfile({ name: name.trim() || t('defaultName') });
+    const r = Number(rating);
+    await updateProfile({ name: name.trim() || t('defaultName'), rating: r >= 100 && r <= 3500 ? Math.round(r) : undefined });
     await refreshProfile();
     toast(t('saved'));
   };
@@ -105,6 +107,11 @@ export function Settings() {
             <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} data-testid="name-input" />
             <button className="btn primary" onClick={saveName} data-testid="save-name">{t('save')}</button>
           </div>
+        </label>
+        <label className="field">
+          <span>{t('myRating')}</span>
+          <input value={rating} inputMode="numeric" maxLength={4} placeholder="1500" onChange={(e) => setRating(e.target.value.replace(/[^0-9]/g, ''))} data-testid="rating-input" />
+          <span className="muted small">{t('myRatingHelp')}</span>
         </label>
       </section>
 

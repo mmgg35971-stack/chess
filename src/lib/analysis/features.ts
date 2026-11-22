@@ -63,6 +63,8 @@ export interface MoveFeatures {
   pushesPassedPawn: boolean;
   /** material the mover is down at worst in the forcing line, vs. before the move (pawn units) */
   sacrifice: number;
+  /** the sacrifice gives up a piece (knight or more), not only pawns */
+  pieceSacrifice: boolean;
   /** captures that remove queens from both sides within the line */
   tradesQueens: boolean;
   /** material swing for the mover over the line (positive = wins material) */
@@ -162,6 +164,10 @@ export function moveFeatures(fenBefore: string, move: Move, replyPv: string[] = 
     weakensKing,
     pushesPassedPawn: move.piece === 'p' && isPassed(after, move.to as Square, mover),
     sacrifice: Math.max(0, -worst),
+    pieceSacrifice: -worst >= 2 && (
+      (!!opponentWins && opponentWins.piece !== 'p') ||
+      (VALUE[move.piece] >= 3 && attacked && !move.captured)
+    ),
     tradesQueens: hadQueens && queensGone,
     lineMaterialDelta,
     opponentWins,

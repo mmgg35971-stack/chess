@@ -5,6 +5,8 @@ export interface Profile {
   id: 'me';
   name: string;
   avatar?: string; // data URL chosen by the user
+  /** optional self-reported rating (e.g. from Chess.com/Lichess/FIDE), used as the starting point for estimates */
+  rating?: number;
   createdAt: number;
 }
 

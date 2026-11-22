@@ -39,7 +39,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  v: 2,
+  v: 3,
   lang: 'ar',
   theme: 'dark',
   boardTheme: 'green',
@@ -50,8 +50,8 @@ export const DEFAULT_SETTINGS: Settings = {
   showArrows: true,
   sound: true,
   animationMs: 250,
-  analysisDepth: 14,
-  analysisMoveTimeMs: 1500,
+  analysisDepth: 12,
+  analysisMoveTimeMs: 2000,
   strictness: 'standard',
   autoAnalyze: false,
 };

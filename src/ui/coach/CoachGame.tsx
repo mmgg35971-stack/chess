@@ -16,6 +16,8 @@ import { evaluateMove, pvToSan, summarize, type MoveEval } from '../../lib/analy
 import { explain, LABEL_TEXT, LABEL_SYMBOL } from '../../lib/analysis/explain';
 import { STRICTNESS, type MoveLabel } from '../../lib/analysis/classify';
 import { moveFeatures } from '../../lib/analysis/features';
+import { bookPlies, openingName } from '../../lib/analysis/book';
+import { estimateRatings } from '../../lib/analysis/gameRating';
 import {
   boardOutcome, checkedKingSquare, isPromotion, legalTargets, resignOutcome, timeoutOutcome,
   tryMove, uciToMove, type Color, type GameOutcome,
@@ -63,6 +65,12 @@ function coachThinkMs(legal: number, gapCp: number | null, ply: number, clockMs:
 }
 
 const BG_LIMITS = { depth: 13, movetime: 1800 };
+
+/** Context for classifying the move at `ply`: book status and the opponent's previous move. */
+function ctxFor(sans: string[], ply: number, evals: MoveEval[], rating = 1500) {
+  const book = bookPlies(sans.slice(0, ply));
+  return { rating, inBook: book[ply - 1] ?? false, prevEval: evals.find((e) => e.ply === ply - 1) ?? null };
+}
 
 export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
   const { t, settings, profile, go, bumpData } = useApp();
@@ -123,7 +131,7 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
       setBgResult({ fen: f, result: r });
       const p = pending.current;
       if (p && p.move.after === f) {
-        evalsRef.current.push(evaluateMove(p.fenBefore, p.move, p.prev, p.before, r.lines, p.ply, th));
+        evalsRef.current.push(evaluateMove(p.fenBefore, p.move, p.prev, p.before, r.lines, p.ply, th, ctxFor(chess.current.history(), p.ply, evalsRef.current, 1500)));
         pending.current = null;
         setEvalsVersion((v) => v + 1);
       }
@@ -135,9 +143,11 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
     const b = bg.current;
     if (b && b.fen === f) {
       if (!b.result) getEngine().stop();
-      return (await b.promise).lines;
+      const lines = (await b.promise).lines;
+      // cut short by a quick move: re-check at the calibrated depth so the verdict is reliable
+      if ((lines[0]?.depth ?? 0) >= 12 && lines.length >= 2) return lines;
     }
-    return (await getEngine().search(f, { depth: 10, movetime: 800 }, { multipv: 3 })).lines;
+    return (await getEngine().search(f, { depth: 12, movetime: 1500 }, { multipv: 2 })).lines;
   };
 
   const finish = useCallback(async (o: GameOutcome) => {
@@ -152,7 +162,7 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
     // the coach's last move, if the game ended right after it
     const p = pending.current;
     if (p && new Chess(p.move.after).isGameOver()) {
-      evalsRef.current.push(evaluateMove(p.fenBefore, p.move, p.prev, p.before, [], p.ply, th));
+      evalsRef.current.push(evaluateMove(p.fenBefore, p.move, p.prev, p.before, [], p.ply, th, ctxFor(chess.current.history(), p.ply, evalsRef.current, 1500)));
       pending.current = null;
     }
     const coachName = `${coach.name.en} (coach simulation, level ${s.setup.level})`;
@@ -332,10 +342,10 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
         const engine = getEngine();
         await engine.setOption('Skill Level', 20);
         const lvl = coachLevel(s.setup.level);
-        after = (await engine.search(mv.after, { depth: Math.max(lvl.depth, 9), movetime: 2500 }, { multipv: 5 })).lines;
+        after = (await engine.search(mv.after, { depth: Math.max(lvl.depth, 12), movetime: 2500 }, { multipv: 5 })).lines;
         if (myGen !== gen.current) return;
       }
-      const ev = evaluateMove(fenBefore, mv, prev, before, after, ply, th);
+      const ev = evaluateMove(fenBefore, mv, prev, before, after, ply, th, ctxFor(chess.current.history(), ply, evalsRef.current, profile?.rating ?? 1500));
       evalsRef.current.push(ev);
       setEvalsVersion((v) => v + 1);
       if (talk) {
@@ -468,7 +478,7 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
 
       {outcome && summary && (
         <GameSummary
-          summary={summary} evals={evalsRef.current} userColor={userColor} coachName={coach.name[L]}
+          summary={summary} evals={evalsRef.current} userColor={userColor} coachName={coach.name[L]} userRating={profile?.rating}
           plies={hist.length} durationMs={session?.activeMs ?? 0}
           onAnalyze={savedId ? () => go({ name: 'analysis', gameId: savedId }) : undefined}
           onAgain={() => go({ name: 'coach', id: coach.id })}
@@ -496,6 +506,7 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
 }
 
 export function GameSummary(p: {
+  userRating?: number | null;
   summary: ReturnType<typeof summarize>;
   evals: MoveEval[];
   userColor: Color;
@@ -517,14 +528,22 @@ export function GameSummary(p: {
   const weakest = [...phases].sort((a, b) => me.byPhase[b].errors - me.byPhase[a].errors)[0];
   const strongest = [...phases].sort((a, b) => me.byPhase[a].loss / me.byPhase[a].moves - me.byPhase[b].loss / me.byPhase[b].moves)[0];
   const mv = (e: MoveEval) => `${Math.ceil(e.ply / 2)}${e.color === 'w' ? '.' : '…'} ${e.san}`;
+  const est = estimateRatings(p.evals, p.userColor === 'w' ? { w: p.userRating } : { b: p.userRating });
+  const meR = est[p.userColor], themR = est[p.userColor === 'w' ? 'b' : 'w'];
+  const sans = [...p.evals].sort((a, b) => a.ply - b.ply).map((e) => e.san);
+  const op = openingName(sans);
   return (
     <div className="card summary" data-testid="summary">
       <h2>{t('summary')}</h2>
       <p>{p.plies} {t('plies')} · {t('duration')}: {fmtDuration(p.durationMs, t)}</p>
+      {op && <p className="small"><span className="muted">{t('opening')}:</span> <span dir="ltr">{op.eco} {op.name}</span></p>}
       <div className="acc-row">
-        <div><span className="muted small">{t('you')}</span><b data-testid="acc-user">{me.accuracy ?? '—'}%</b></div>
-        <div><span className="muted small">{p.coachName}</span><b>{them.accuracy ?? '—'}%</b></div>
+        <div><span className="muted small">{t('you')}</span><b data-testid="acc-user">{me.accuracy ?? '—'}%</b>
+          <span className="small" data-testid="gr-user">{t('gameRating')}: {meR ? <b dir="ltr">{meR.rating} ±{meR.plusMinus}</b> : t('grNeedMoves')}</span></div>
+        <div><span className="muted small">{p.coachName}</span><b>{them.accuracy ?? '—'}%</b>
+          <span className="small">{t('gameRating')}: {themR ? <b dir="ltr">{themR.rating} ±{themR.plusMinus}</b> : t('grNeedMoves')}</span></div>
       </div>
+      <p className="muted tiny">{t('gameRatingNote')}{!p.userRating && ' ' + t('gameRatingNoPrior')}</p>
       <LabelTable summary={p.summary} userColor={p.userColor} coachName={p.coachName} />
       {good.length > 0 && <p><b>{t('bestMoves')}:</b> <span dir="ltr">{good.map(mv).join(', ')}</span></p>}
       {bad.length > 0 && <p><b>{t('yourMistakes')}:</b> <span dir="ltr">{bad.map(mv).join(', ')}</span></p>}
@@ -533,7 +552,6 @@ export function GameSummary(p: {
       {bad.length === 0 && missed.length === 0 ? <p>{t('noErrors')}</p> : null}
       {strongest && phases.length > 1 && strongest !== weakest && <p>{t('strongPhase', { phase: t(('phase_' + strongest) as 'phase_opening') })}</p>}
       {weakest && me.byPhase[weakest].errors > 0 && <p>{t('weakPhase', { phase: t(('phase_' + weakest) as 'phase_opening') })}</p>}
-      <p className="muted small">{t('perfNote')}</p>
       <div className="row gap wrap">
         {p.onAnalyze && <button className="btn primary" onClick={p.onAnalyze} data-testid="analyze-game">{t('analyzeGame')}</button>}
         {p.onAgain && <button className="btn" onClick={p.onAgain}>{t('newGame')}</button>}
@@ -543,14 +561,14 @@ export function GameSummary(p: {
   );
 }
 
-export function LabelTable({ summary, userColor, coachName }: { summary: ReturnType<typeof summarize>; userColor: Color; coachName: string }) {
+export function LabelTable({ summary, userColor, coachName, names }: { summary: ReturnType<typeof summarize>; userColor: Color; coachName: string; names?: { w: string; b: string } }) {
   const { t, settings } = useApp();
   const L = settings.lang;
-  const labels: MoveLabel[] = ['brilliant', 'great', 'best', 'excellent', 'good', 'inaccuracy', 'mistake', 'missedWin', 'blunder'];
+  const labels: MoveLabel[] = ['brilliant', 'great', 'best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'missedWin', 'blunder'];
   const other: Color = userColor === 'w' ? 'b' : 'w';
   return (
     <table className="label-table" data-testid="label-table">
-      <thead><tr><th>{t('label_counts')}</th><th>{t('you')}</th><th>{coachName}</th></tr></thead>
+      <thead><tr><th>{t('label_counts')}</th><th>{names ? names[userColor] : t('you')}</th><th>{names ? names[other] : coachName}</th></tr></thead>
       <tbody>
         {labels.map((l) => (
           <tr key={l}>

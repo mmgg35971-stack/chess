@@ -4,6 +4,8 @@ import { toWhitePov, type InfoLine, type Score } from '../engine/uci';
 import { moveToUci, uciToMove } from '../chess/game';
 import { classify, gameAccuracy, LABEL_ORDER, STRICTNESS, type MoveLabel, type Thresholds } from './classify';
 import { gamePhase, moveFeatures, type MoveFeatures } from './features';
+import { bookPlies } from './book';
+import { estimateRatings } from './gameRating';
 
 export interface MoveEval {
   ply: number; // 1-based
@@ -22,6 +24,10 @@ export interface MoveEval {
   label: MoveLabel;
   loss: number;
   accuracy: number;
+  /** mover's expected points before (best play) / after the move */
+  epBefore: number;
+  epAfter: number;
+  rating: number;
   phase: 'opening' | 'middlegame' | 'endgame';
   played: MoveFeatures;
   best: MoveFeatures | null;
@@ -53,6 +59,15 @@ function afterScore(fenAfter: string, after: InfoLine[]): Score {
   return toWhitePov(top.score, c.turn());
 }
 
+export interface MoveContext {
+  /** rating used for the mover's expected-points curve */
+  rating: number;
+  /** still in opening theory after this move */
+  inBook: boolean;
+  /** evaluation of the opponent's previous move, if any */
+  prevEval: MoveEval | null;
+}
+
 /**
  * Evaluate one played move from engine lines of the position before it
  * (`before`, MultiPV ≥ 2, side-to-move POV) and of the position after it
@@ -66,6 +81,7 @@ export function evaluateMove(
   after: InfoLine[],
   ply: number,
   th: Thresholds = STRICTNESS.standard,
+  ctx: MoveContext = { rating: 1500, inBook: false, prevEval: null },
 ): MoveEval {
   const pos = new Chess(fenBefore);
   const mover = pos.turn();
@@ -100,8 +116,13 @@ export function evaluateMove(
       secondScore,
       isBest,
       sacrificeAmount: played.sacrifice,
+      pieceSacrifice: played.pieceSacrifice,
       isRecapture: played.recapture,
       legalMoves: pos.moves().length,
+      rating: ctx.rating,
+      inBook: ctx.inBook,
+      opponentPrevLoss: ctx.prevEval ? ctx.prevEval.loss : null,
+      epBeforeOpponentMove: ctx.prevEval ? 1 - ctx.prevEval.epBefore : null,
     },
     th,
   );
@@ -111,6 +132,7 @@ export function evaluateMove(
     bestLineSan: top ? pvToSan(fenBefore, top.pv) : [],
     replySan: pvToSan(fenAfter, replyPv),
     label: res.label, loss: res.loss, accuracy: res.accuracy,
+    epBefore: res.epBefore, epAfter: res.epAfter, rating: ctx.rating,
     phase: gamePhase(pos),
     played, best, depth: top?.depth ?? 0,
   };
@@ -146,6 +168,28 @@ export function summarize(evals: MoveEval[]): Record<'w' | 'b', SideSummary> {
   return out;
 }
 
+/**
+ * Classify every move. Without known ratings, a first pass estimates each
+ * side's game rating, which then sets the expected-points curve (like
+ * Chess.com, which uses the player's rating).
+ */
+export function evaluateAll(moves: Move[], fens: string[], lines: InfoLine[][], th: Thresholds, ratings: { w?: number | null; b?: number | null } | null): MoveEval[] {
+  const book = bookPlies(moves.map((m) => m.san));
+  const pass = (r: { w: number; b: number }) => {
+    const out: MoveEval[] = [];
+    moves.forEach((m, i) => {
+      out.push(evaluateMove(fens[i], m, i > 0 ? moves[i - 1] : null, lines[i], lines[i + 1], i + 1, th, {
+        rating: r[m.color], inBook: book[i], prevEval: i > 0 ? out[i - 1] : null,
+      }));
+    });
+    return out;
+  };
+  if (ratings?.w && ratings?.b) return pass({ w: ratings.w, b: ratings.b });
+  const first = pass({ w: ratings?.w ?? 1500, b: ratings?.b ?? 1500 });
+  const est = estimateRatings(first, ratings ?? {});
+  return pass({ w: est.w?.rating ?? 1500, b: est.b?.rating ?? 1500 });
+}
+
 export interface FullAnalysis {
   evals: MoveEval[];
   /** White-POV score of every position, index 0 = start */
@@ -163,6 +207,7 @@ export async function analyzeGame(
   onProgress?: (done: number, total: number) => void,
   shouldStop?: () => boolean,
   th: Thresholds = STRICTNESS.standard,
+  ratings: { w?: number | null; b?: number | null } | null = null,
 ): Promise<FullAnalysis | null> {
   const c = new Chess();
   if (pgnOrMoves.pgn) c.loadPgn(pgnOrMoves.pgn);
@@ -178,7 +223,7 @@ export async function analyzeGame(
     else lines.push((await engine.search(fens[i], limits, { multipv: 2 })).lines);
     onProgress?.(i + 1, fens.length);
   }
-  const evals = moves.map((m, i) => evaluateMove(fens[i], m, i > 0 ? moves[i - 1] : null, lines[i], lines[i + 1], i + 1, th));
+  const evals = evaluateAll(moves, fens, lines, th, ratings);
   const curve = fens.map((f, i) => {
     const pos = new Chess(f);
     if (pos.isCheckmate()) return { mate: pos.turn() === 'w' ? -1 : 1 } as Score;

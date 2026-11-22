@@ -37,7 +37,9 @@ export function App() {
       const stored = await getSetting<Partial<S>>('settings', {});
       const s = { ...DEFAULT_SETTINGS, ...stored };
       // v2: the redesigned green board and bold pieces become the default once
-      if (!stored.v || stored.v < 2) { s.boardTheme = 'green'; s.pieceSet = 'chessnut'; s.v = 2; await setSetting('settings', s); }
+      if (!stored.v || stored.v < 2) { s.boardTheme = 'green'; s.pieceSet = 'chessnut'; }
+      // v3: analysis depth 12 = the depth the classification models were calibrated at
+      if (!stored.v || stored.v < 3) { s.analysisDepth = 12; s.analysisMoveTimeMs = 2000; s.v = 3; await setSetting('settings', s); }
       setSettingsState(s);
       setProfile(await ensureProfile(translator(s.lang)('defaultName')));
     })();

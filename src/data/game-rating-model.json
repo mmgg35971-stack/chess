@@ -1,0 +1,43 @@
+{
+ "intercept": 1620.2964285714302,
+ "coef": {
+  "accuracy": 9.084372622440254,
+  "logLoss": 82.95120488915686,
+  "mistakeRate": -16.87550688876126,
+  "blunderRate": -11.936975201266494,
+  "bestRate": -24.633520311651218,
+  "logMoves": 42.04849768266045,
+  "logAcpl": -151.28957792924123
+ },
+ "mean": {
+  "accuracy": 82.39321275310566,
+  "logLoss": -3.227511861905362,
+  "mistakeRate": 0.09998794644616091,
+  "blunderRate": 0.0356693302261983,
+  "bestRate": 0.23209001638358756,
+  "logMoves": 3.517148724647111,
+  "logAcpl": 4.192364759564847
+ },
+ "std": {
+  "accuracy": 9.032985363205848,
+  "logLoss": 0.4088793240075265,
+  "mistakeRate": 0.07227519563228045,
+  "blunderRate": 0.040929195451904446,
+  "bestRate": 0.09697479785504967,
+  "logMoves": 0.4328413795656853,
+  "logAcpl": 0.47718078516318246
+ },
+ "mae": 211.78579119998992,
+ "rmse": 264.42770252171437,
+ "baselineMae": 229.07854591836738,
+ "corr": 0.3687736299560743,
+ "alpha": 1378.3818370142615,
+ "beta": 0.14930267529531954,
+ "sigma": 101.2537151690905,
+ "popMean": 1620.2964285714286,
+ "popSd": 284.43503900858684,
+ "games": 700,
+ "playerGames": 1400,
+ "minMoves": 10,
+ "source": "Lichess standard rated games, Sept 2017 (CC0, 1000-game sample shipped in the jja crate); bullet excluded; analysed with Stockfish.js 19 lite, depth 12, MultiPV 2; 5-fold cross-validated"
+}

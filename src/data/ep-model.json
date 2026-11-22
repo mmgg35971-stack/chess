@@ -1,0 +1,13 @@
+{
+ "a0": 0.39138045078383527,
+ "a1": 0.22252645808612748,
+ "power": 0.7367709180419911,
+ "ref": 1500.0,
+ "minRating": 800,
+ "maxRating": 2600,
+ "games": 700,
+ "positions": 12533,
+ "nll": 0.5724055042060453,
+ "set": "classical",
+ "source": "Lichess standard rated games, Sept 2017 (CC0, 1000-game sample shipped in the jja crate); bullet excluded; analysed with Stockfish.js 19 lite, depth 12, MultiPV 2; 5-fold cross-validated"
+}

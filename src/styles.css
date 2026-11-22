@@ -130,7 +130,7 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color:
 /* ---- move labels (original palette & symbols) ---- */
 .lb { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; color: #fff; white-space: nowrap; }
 .lbt { font-size: 10px; font-weight: 800; margin-inline-start: 2px; padding: 0 3px; border-radius: 4px; color: #fff; }
-.lb-brilliant { background: #b26ee0; } .lb-great { background: #4a7fd4; } .lb-best { background: #2e9d63; }
+.lb-book { background: #a0805a; } .lb-brilliant { background: #b26ee0; } .lb-great { background: #4a7fd4; } .lb-best { background: #2e9d63; }
 .lb-excellent { background: #5aa469; } .lb-good { background: #7c8a6f; } .lb-inaccuracy { background: #d99a2b; }
 .lb-mistake { background: #e2762a; } .lb-missedWin { background: #d65478; } .lb-blunder { background: #d04038; }
 /* ---- coach comments ---- */
@@ -141,7 +141,7 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color:
 .comment-san { font-weight: 700; margin-inline: 6px; }
 /* ---- summary ---- */
 .acc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
-.acc-row > div { background: var(--bg2); border-radius: 10px; padding: 8px; text-align: center; display: flex; flex-direction: column; }
+.acc-row > div { background: var(--bg2); border-radius: 10px; padding: 8px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
 .acc-row b { font-size: 24px; }
 .label-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .label-table th, .label-table td { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: start; }

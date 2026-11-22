@@ -104,7 +104,7 @@ const ar = {
   animSlow: 'بطيئة',
   analysis: 'التحليل',
   engine: 'المحرك المحلي',
-  depth: 'عمق التحليل',
+  depth: 'عمق التحليل (12 = العمق الذي عُويرت عليه النماذج)',
   moveTime: 'أقصى وقت للتحليل (ثانية)',
   data: 'البيانات',
   exportBackup: 'تصدير نسخة احتياطية',
@@ -196,6 +196,13 @@ const ar = {
   autoAnalyze: 'تحليل تلقائي بعد كل مباراة',
   startPosition: 'وضعية البداية',
   selectMove: 'اختر نقلة لعرض تحليلها.',
+  opening: 'الافتتاحية',
+  grNeedMoves: 'يحتاج 10 نقلات على الأقل',
+  myRating: 'تصنيفك التقريبي (اختياري)',
+  myRatingHelp: 'مثلاً تصنيفك في Chess.com أو Lichess أو FIDE. يُستخدم نقطة انطلاق لتقدير «تصنيف المباراة» ولضبط معايير تصنيف النقلات حسب مستواك، كما يفعل Chess.com. اضغط «حفظ» أعلاه.',
+  gameRatingNoPrior: 'بدون تصنيف في ملفك يكون التقدير تقريبياً جداً. أضف تصنيفك من الإعدادات لتقدير أدق.',
+  gameRating: 'تصنيف المباراة',
+  gameRatingNote: 'تقدير لمستوى اللعب في هذه المباراة فقط، من جودة النقلات (نموذج مُعايَر على مباريات Lichess حقيقية). ليس تصنيفاً رسمياً، وقد تختلف مباراة واحدة كثيراً عن مستواك الحقيقي.',
 };
 
 type Dict = typeof ar;
@@ -301,7 +308,7 @@ const en: Dict = {
   animSlow: 'Slow',
   analysis: 'Analysis',
   engine: 'Local engine',
-  depth: 'Analysis depth',
+  depth: 'Analysis depth (12 = depth the models were calibrated at)',
   moveTime: 'Max analysis time (s)',
   data: 'Data',
   exportBackup: 'Export backup',
@@ -390,6 +397,13 @@ const en: Dict = {
   autoAnalyze: 'Analyse automatically after each game',
   startPosition: 'Start position',
   selectMove: 'Pick a move to see its analysis.',
+  opening: 'Opening',
+  grNeedMoves: 'needs at least 10 moves',
+  myRating: 'Your approximate rating (optional)',
+  myRatingHelp: 'E.g. your Chess.com, Lichess or FIDE rating. Used as the starting point for the Game Rating and to tune move labels to your level, as Chess.com does. Press Save above.',
+  gameRatingNoPrior: 'Without a rating in your profile the estimate is very rough. Add your rating in Settings for a better one.',
+  gameRating: 'Game rating',
+  gameRatingNote: 'An estimate of the strength shown in this game only, from move quality (model calibrated on real Lichess games). Not an official rating; a single game can differ a lot from your real level.',
 };
 
 export type TKey = keyof Dict;

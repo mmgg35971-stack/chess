@@ -26,7 +26,7 @@ export function currentJob() {
   return job;
 }
 
-export async function runFullAnalysis(gameId: number, pgn: string, depth: number, movetime: number, th: Thresholds) {
+export async function runFullAnalysis(gameId: number, pgn: string, depth: number, movetime: number, th: Thresholds, ratings: { w?: number | null; b?: number | null } | null = null) {
   if (job && !job.finished && !job.cancelled) {
     if (job.gameId === gameId) return;
     job.cancelled = true;
@@ -41,6 +41,7 @@ export async function runFullAnalysis(gameId: number, pgn: string, depth: number
     (d, total) => { me.done = d; me.total = total; if (job === me) emit(); },
     () => me.cancelled,
     th,
+    ratings,
   );
   if (res && !me.cancelled) {
     await saveAnalysis({ gameId, kind: 'full', evals: res.evals, curve: res.curve, depth, engine: res.engine, createdAt: res.createdAt });

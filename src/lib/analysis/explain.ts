@@ -17,17 +17,17 @@ const PIECE: Record<Lang, Record<PieceSymbol, string>> = {
 
 export const LABEL_TEXT: Record<Lang, Record<MoveLabel, string>> = {
   ar: {
-    brilliant: 'مدهشة', great: 'رائعة', best: 'أفضل نقلة', excellent: 'ممتازة', good: 'جيدة',
-    inaccuracy: 'غير دقيقة', mistake: 'خطأ', missedWin: 'أضاعت فرصة', blunder: 'خطأ فادح',
+    book: 'نظرية', brilliant: 'مدهشة', great: 'رائعة', best: 'أفضل نقلة', excellent: 'ممتازة', good: 'جيدة',
+    inaccuracy: 'غير دقيقة', mistake: 'خطأ', missedWin: 'فرصة ضائعة', blunder: 'خطأ فادح',
   },
   en: {
-    brilliant: 'Brilliant', great: 'Great move', best: 'Best move', excellent: 'Excellent', good: 'Good',
-    inaccuracy: 'Inaccuracy', mistake: 'Mistake', missedWin: 'Missed win', blunder: 'Blunder',
+    book: 'Book', brilliant: 'Brilliant', great: 'Great move', best: 'Best move', excellent: 'Excellent', good: 'Good',
+    inaccuracy: 'Inaccuracy', mistake: 'Mistake', missedWin: 'Miss', blunder: 'Blunder',
   },
 };
 
 export const LABEL_SYMBOL: Record<MoveLabel, string> = {
-  brilliant: '!!', great: '!', best: '★', excellent: '✓', good: '·', inaccuracy: '?!', mistake: '?', missedWin: '✕', blunder: '??',
+  book: '📖', brilliant: '!!', great: '!', best: '★', excellent: '✓', good: '·', inaccuracy: '?!', mistake: '?', missedWin: '✕', blunder: '??',
 };
 
 export interface ExplainInput {
@@ -54,8 +54,9 @@ export interface Explanation {
 const T = {
   ar: {
     praise: {
+      book: 'نقلة معروفة من نظرية الافتتاحات.',
       brilliant: 'تضحية صحيحة! يثبت التحليل أن ما تخليت عنه يعود عليك بأفضلية.',
-      great: 'نقلة رائعة: كانت تقريباً النقلة الوحيدة التي تحافظ على وضعك.',
+      great: 'نقلة رائعة وحاسمة: البدائل الأخرى كانت تغيّر نتيجة المباراة.',
       best: 'هذه أفضل نقلة في الوضعية حسب التحليل.',
       excellent: 'نقلة ممتازة، قريبة جداً من الأفضل.',
       good: 'نقلة جيدة، لكن كان هناك ما هو أدق قليلاً.',
@@ -63,7 +64,7 @@ const T = {
     warn: {
       inaccuracy: 'نقلة غير دقيقة: تفقد جزءاً من أفضليتك.',
       mistake: 'هذه النقلة خطأ: تعطي الخصم فرصة واضحة.',
-      missedWin: 'أضعت فرصة: كانت الوضعية فائزة قبل هذه النقلة.',
+      missedWin: 'فرصة ضائعة: أخطأ خصمك وكان بإمكانك الوصول إلى وضعية فائزة، لكن هذه النقلة لم تستغل خطأه.',
       blunder: 'خطأ فادح: يغيّر نتيجة المباراة.',
     },
     mateFor: (n: number) => `أصبح لديك كش مات في ${n}.`,
@@ -95,8 +96,9 @@ const T = {
   },
   en: {
     praise: {
+      book: 'A known opening move from theory.',
       brilliant: 'A sound sacrifice! The engine confirms that what you gave up comes back as an advantage.',
-      great: 'Great move: practically the only one that keeps your position.',
+      great: 'A great, critical move: the alternatives would have changed the result.',
       best: 'This is the best move in the position according to the analysis.',
       excellent: 'Excellent move, very close to the best.',
       good: 'A good move, though something slightly more precise existed.',
@@ -104,7 +106,7 @@ const T = {
     warn: {
       inaccuracy: 'An inaccuracy: you give away part of your advantage.',
       mistake: 'This move is a mistake: it gives your opponent a clear chance.',
-      missedWin: 'Missed win: the position was winning before this move.',
+      missedWin: 'Miss: your opponent erred and you could reach a winning position, but this move did not punish it.',
       blunder: 'A blunder: it changes the result of the game.',
     },
     mateFor: (n: number) => `You now have mate in ${n}.`,
@@ -177,7 +179,7 @@ export function explain(i: ExplainInput): Explanation {
   }
 
   let better: string | null = null;
-  if (i.bestSan && i.label !== 'best' && i.label !== 'brilliant' && i.label !== 'great') {
+  if (i.bestSan && i.label !== 'best' && i.label !== 'brilliant' && i.label !== 'great' && i.label !== 'book') {
     const b = i.best;
     const whys: string[] = [];
     if (b) {
