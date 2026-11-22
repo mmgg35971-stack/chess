@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CoachProfile } from '../../lib/coach/coaches';
 
 /** Original emblem for each coach: colours + monogram + a symbol of the style. Not a likeness. */
@@ -31,5 +32,26 @@ export function Emblem({ coach, size = 56 }: { coach: CoachProfile; size?: numbe
         {coach.monogram}
       </text>
     </svg>
+  );
+}
+
+/**
+ * The coach's portrait from the project's asset pack (AI-generated, illustrative).
+ * Falls back to the emblem if the image cannot load.
+ */
+export function CoachPortrait({ coach, size = 56, round = false }: { coach: CoachProfile; size?: number; round?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (failed || !coach.portrait) return <Emblem coach={coach} size={size} />;
+  return (
+    <img
+      className={'coach-portrait' + (round ? ' round' : '')}
+      src={coach.portrait}
+      alt={coach.name.en}
+      width={size}
+      height={round ? size : Math.round(size * 1.3)}
+      style={{ borderColor: coach.color[0] }}
+      onError={() => setFailed(true)}
+      data-testid="coach-portrait"
+    />
   );
 }

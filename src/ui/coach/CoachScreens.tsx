@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../AppContext';
 import { COACHES, COACH_LEVELS, coachById, type CoachProfile } from '../../lib/coach/coaches';
-import { Emblem } from './Emblem';
+import { CoachPortrait } from './Emblem';
 import { Icon } from '../icons';
 import { Segmented, TIME_CONTROLS } from '../screens/Play';
 import { getSetting, setSetting } from '../../lib/storage/repo';
@@ -16,6 +16,8 @@ export interface CoachSetup {
 }
 
 function fmtYmd(d: string, lang: Lang) {
+  const decade = d.match(/^(\d{3})0s$/);
+  if (decade) return lang === 'ar' ? `سبعينيات القرن العشرين`.replace('سبعينيات', ({ '196': 'ستينيات', '197': 'سبعينيات', '198': 'ثمانينيات', '199': 'تسعينيات' } as Record<string, string>)[decade[1]] ?? decade[0]) : d;
   const parts = d.split('-').map(Number);
   if (parts.length === 1 || isNaN(parts[1])) return d;
   const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] || 1));
@@ -41,7 +43,7 @@ export function Coaches() {
       <p className="muted small">{t('coachesIntro')}</p>
       {COACHES.map((c) => (
         <div key={c.id} className="card coach-card" role="button" onClick={() => go({ name: 'coach', id: c.id })} data-testid={'coach-' + c.id}>
-          <Emblem coach={c} size={56} />
+          <CoachPortrait coach={c} size={56} />
           <div>
             <strong>{c.name[L]}</strong> <img className="flag" src={`./flags/${c.federation.flag}.svg`} alt={c.federation.label[L]} />
             <div className="small">{c.style[L]}</div>
@@ -83,7 +85,10 @@ export function CoachDetail({ id }: { id: string }) {
   return (
     <div className="screen">
       <div className="card coach-hero">
-        <Emblem coach={coach} size={84} />
+        <div className="portrait-box">
+          <CoachPortrait coach={coach} size={120} />
+          <span className="muted tiny">{t('portraitNote')}</span>
+        </div>
         <div>
           <h1>{coach.name[L]}</h1>
           <div className="muted small" dir="ltr">{coach.fullName}</div>

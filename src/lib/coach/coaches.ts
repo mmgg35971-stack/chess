@@ -44,6 +44,8 @@ export interface CoachProfile {
   style: Bi;
   strengths: Bi[];
   sources: string[];
+  /** AI-generated illustrative portrait from the project's asset pack (not a photograph) */
+  portrait: string;
   /** emblem */
   color: [string, string];
   symbol: 'hourglass' | 'bolt' | 'target' | 'comet' | 'flame' | 'diamond' | 'chevrons';
@@ -82,6 +84,7 @@ export const COACHES: CoachProfile[] = [
       { ar: 'الدفاع العنيد', en: 'Stubborn defence' },
     ],
     sources: ['FIDE November 2026 list (via ChessBase)', 'Wikipedia: List of chess players by peak FIDE rating'],
+    portrait: './coaches/carlsen.webp',
     color: ['#2f6d9b', '#173a57'],
     symbol: 'hourglass',
     monogram: 'MC',
@@ -135,6 +138,7 @@ export const COACHES: CoachProfile[] = [
       { ar: 'الدفاع العملي', en: 'Practical defence' },
     ],
     sources: ['FIDE November 2026 list (via ChessBase)', 'FIDE top list API (birth date)', 'Wikipedia: List of chess players by peak FIDE rating'],
+    portrait: './coaches/nakamura.webp',
     color: ['#c2452f', '#6d1f14'],
     symbol: 'bolt',
     monogram: 'HN',
@@ -184,6 +188,7 @@ export const COACHES: CoachProfile[] = [
       { ar: 'الدقة', en: 'Precision' },
     ],
     sources: ['FIDE November 2026 list (via ChessBase)', 'Wikipedia: Fabiano Caruana'],
+    portrait: './coaches/caruana.webp',
     color: ['#3d8a5f', '#1c4a31'],
     symbol: 'target',
     monogram: 'FC',
@@ -236,6 +241,7 @@ export const COACHES: CoachProfile[] = [
       { ar: 'الشطرنج السريع', en: 'Fast time controls' },
     ],
     sources: ['FIDE November 2026 list (via ChessBase)', 'Wikipedia: Alireza Firouzja'],
+    portrait: './coaches/firouzja.webp',
     color: ['#7b4bb3', '#3b215e'],
     symbol: 'comet',
     monogram: 'AF',
@@ -288,6 +294,7 @@ export const COACHES: CoachProfile[] = [
       { ar: 'الخيال', en: 'Imagination' },
     ],
     sources: ['Wikipedia: Mikhail Tal', '365chess.com: Mikhail Tal (1992 game ratings, opening repertoire)'],
+    portrait: './coaches/tal.webp',
     color: ['#d9792b', '#7a3a0c'],
     symbol: 'flame',
     monogram: 'MT',
@@ -341,6 +348,7 @@ export const COACHES: CoachProfile[] = [
       { ar: 'الافتتاحيات (1.e4 والنايدورف)', en: 'Openings (1.e4 and the Najdorf)' },
     ],
     sources: ['Wikipedia: Bobby Fischer', 'chessgames.com: Bobby Fischer (last FIDE rating)'],
+    portrait: './coaches/fischer.webp',
     color: ['#2b4c8c', '#14254a'],
     symbol: 'diamond',
     monogram: 'BF',
@@ -393,6 +401,7 @@ export const COACHES: CoachProfile[] = [
       { ar: 'الهجوم الديناميكي', en: 'Dynamic attack' },
     ],
     sources: ['Wikipedia: Garry Kasparov', 'chessgames.com: Garry Kasparov (last FIDE rating)'],
+    portrait: './coaches/kasparov.webp',
     color: ['#a32638', '#4f0f1a'],
     symbol: 'chevrons',
     monogram: 'GK',

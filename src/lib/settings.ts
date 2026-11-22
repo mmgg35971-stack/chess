@@ -8,6 +8,7 @@ export interface BoardTheme {
 }
 
 export const BOARD_THEMES: BoardTheme[] = [
+  { id: 'green', light: '#ebecd0', dark: '#779556' },
   { id: 'walnut', light: '#ecd9b9', dark: '#b07f55' },
   { id: 'forest', light: '#e8edc9', dark: '#6f9161' },
   { id: 'ocean', light: '#dfe7ef', dark: '#5f84a8' },
@@ -15,10 +16,12 @@ export const BOARD_THEMES: BoardTheme[] = [
   { id: 'rose', light: '#f1dfd8', dark: '#b8746a' },
 ];
 
-export const PIECE_SETS = ['cburnett', 'merida'] as const;
+export const PIECE_SETS = ['chessnut', 'cburnett', 'merida'] as const;
 export type PieceSet = (typeof PIECE_SETS)[number];
 
 export interface Settings {
+  /** settings schema version (for one-time migrations) */
+  v: number;
   lang: Lang;
   theme: Theme;
   boardTheme: string;
@@ -36,10 +39,11 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  v: 2,
   lang: 'ar',
   theme: 'dark',
-  boardTheme: 'walnut',
-  pieceSet: 'cburnett',
+  boardTheme: 'green',
+  pieceSet: 'chessnut',
   coordinates: true,
   showLastMove: true,
   showLegal: true,

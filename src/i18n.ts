@@ -128,6 +128,7 @@ const ar = {
   // coaches
   coachesIntro: 'مدربون افتراضيون يحاكون أساليب كبار اللاعبين تعليمياً. هذه محاكاة وليست تمثيلاً لأفكار اللاعبين الحقيقيين أو كلامهم.',
   simulation: 'محاكاة تعليمية',
+  portraitNote: 'صورة توضيحية مولّدة بالذكاء الاصطناعي، وليست صورة حقيقية',
   simulationNote: 'أسلوب هذا المدرب ملخص مبسّط لما يُعرف به اللاعب (ذخيرة افتتاحية وميول أسلوبية)، وليس ناتجاً عن تحليل 200 مباراة. الأحكام على النقلات تأتي من Stockfish، والعبارات من التطبيق وليست كلام اللاعب.',
   born: 'الميلاد',
   died: 'الوفاة',
@@ -322,6 +323,7 @@ const en: Dict = {
   stockfishCard: 'Open-source engine running on your device',
   coachesIntro: 'Virtual coaches that simulate the styles of great players for learning. This is a simulation, not a representation of the real players’ thoughts or words.',
   simulation: 'Educational simulation',
+  portraitNote: 'AI-generated illustration, not a real photograph',
   simulationNote: 'This coach’s style is a simplified summary of what the player is known for (opening repertoire and stylistic tendencies); it was not computed from 200 games. Move verdicts come from Stockfish; the wording is the app’s, not the player’s.',
   born: 'Born',
   died: 'Died',

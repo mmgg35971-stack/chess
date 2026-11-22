@@ -85,7 +85,7 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color:
 .pill.loss { background: var(--loss); color: #fff; border-color: transparent; }
 .pill.draw { background: var(--draw); color: #fff; border-color: transparent; }
 .board-wrap { width: 100%; max-width: min(100%, 70vh); margin: 0 auto; }
-.board { width: 100%; height: auto; display: block; border-radius: 8px; user-select: none; -webkit-user-select: none; }
+.board { width: 100%; height: auto; display: block; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.35); user-select: none; -webkit-user-select: none; }
 .player-bar { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); }
 .player-bar.active { border-color: var(--accent); }
 .clock { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 18px; padding: 2px 8px; border-radius: 6px; background: var(--bg2); }
@@ -146,3 +146,7 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color:
 .label-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .label-table th, .label-table td { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: start; }
 .label-table td:not(:first-child), .label-table th:not(:first-child) { text-align: center; width: 22%; }
+.coach-portrait { object-fit: cover; object-position: 50% 20%; border-radius: 12px; border: 2px solid; flex: none; background: #222; }
+.coach-portrait.round { border-radius: 50%; border-width: 2px; }
+.portrait-box { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 130px; text-align: center; }
+.tiny { font-size: 10px; line-height: 1.3; }

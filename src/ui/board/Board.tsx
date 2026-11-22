@@ -198,14 +198,14 @@ export function Board(p: BoardProps) {
       const fxy = xy(fileSq);
       const fLight = (i + (flip ? 7 : 0)) % 2 === 1;
       coords.push(
-        <text key={'f' + i} x={fxy.x + S - 6} y={fxy.y + S - 6} textAnchor="end" fontSize="20" fontWeight="600"
+        <text key={'f' + i} x={fxy.x + S - 6} y={fxy.y + S - 6} textAnchor="end" fontSize="21" fontWeight="700"
           fill={fLight ? theme.dark : theme.light}>{FILES[i]}</text>,
       );
       const rankSq = ((flip ? 'h' : 'a') + (i + 1)) as Square;
       const rxy = xy(rankSq);
       const rLight = ((flip ? 7 : 0) + i) % 2 === 1;
       coords.push(
-        <text key={'r' + i} x={rxy.x + 6} y={rxy.y + 22} fontSize="20" fontWeight="600"
+        <text key={'r' + i} x={rxy.x + 5} y={rxy.y + 22} fontSize="21" fontWeight="700"
           fill={rLight ? theme.dark : theme.light}>{i + 1}</text>,
       );
     }
@@ -216,10 +216,10 @@ export function Board(p: BoardProps) {
     const x1 = A.x + S / 2, y1 = A.y + S / 2, x2 = B.x + S / 2, y2 = B.y + S / 2;
     const len = Math.hypot(x2 - x1, y2 - y1);
     const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
-    const color = a.color ?? 'rgba(30,140,90,0.8)';
+    const color = a.color ?? 'rgba(255,170,0,0.8)';
     return (
       <g key={'a' + i} opacity={0.85}>
-        <line x1={x1} y1={y1} x2={x2 - ux * 30} y2={y2 - uy * 30} stroke={color} strokeWidth={16} strokeLinecap="round" />
+        <line x1={x1} y1={y1} x2={x2 - ux * 30} y2={y2 - uy * 30} stroke={color} strokeWidth={18} strokeLinecap="butt" />
         <polygon
           points={`${x2},${y2} ${x2 - ux * 40 - uy * 26},${y2 - uy * 40 + ux * 26} ${x2 - ux * 40 + uy * 26},${y2 - uy * 40 - ux * 26}`}
           fill={color}
@@ -244,12 +244,23 @@ export function Board(p: BoardProps) {
         style={{ touchAction: 'none' }}
       >
         {squares}
-        {p.showLastMove && p.lastMove && p.lastMove.map((sq, i) => highlight(sq, 'rgba(255,214,64,0.42)', 'lm' + i))}
+        {p.showLastMove && p.lastMove && p.lastMove.map((sq, i) => highlight(sq, 'rgba(255,255,51,0.5)', 'lm' + i))}
         {(p.highlights ?? []).map((h, i) => highlight(h.sq, h.color, 'hl' + i))}
-        {selected && highlight(selected, 'rgba(70,160,255,0.45)', 'sel')}
-        {p.checkSquare && (
-          <circle cx={xy(p.checkSquare).x + S / 2} cy={xy(p.checkSquare).y + S / 2} r={46} fill="rgba(230,40,40,0.55)" />
-        )}
+        {selected && highlight(selected, 'rgba(255,255,51,0.5)', 'sel')}
+        <defs>
+          <radialGradient id="checkGlow">
+            <stop offset="0%" stopColor="rgb(255,0,0)" stopOpacity="1" />
+            <stop offset="25%" stopColor="rgb(231,0,0)" stopOpacity="1" />
+            <stop offset="89%" stopColor="rgb(169,0,0)" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        {p.checkSquare && <rect x={xy(p.checkSquare).x} y={xy(p.checkSquare).y} width={S} height={S} fill="url(#checkGlow)" />}
+        {drag?.moved && (() => {
+          const over = squareAt(drag.x, drag.y);
+          if (!over) return null;
+          const o = xy(over);
+          return <rect x={o.x + 3} y={o.y + 3} width={S - 6} height={S - 6} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth={6} />;
+        })()}
         {coords}
         {pieces.map((pc) => {
           if (drag?.moved && drag.from === pc.sq) return null;
@@ -261,9 +272,9 @@ export function Board(p: BoardProps) {
             const { x, y } = xy(sq);
             const cap = !!pieceAt(sq);
             return cap ? (
-              <circle key={'t' + sq} cx={x + S / 2} cy={y + S / 2} r={44} fill="none" stroke="rgba(20,20,20,0.35)" strokeWidth={8} />
+              <circle key={'t' + sq} cx={x + S / 2} cy={y + S / 2} r={43} fill="none" stroke="rgba(0,0,0,0.14)" strokeWidth={10} />
             ) : (
-              <circle key={'t' + sq} cx={x + S / 2} cy={y + S / 2} r={15} fill="rgba(20,20,20,0.32)" />
+              <circle key={'t' + sq} cx={x + S / 2} cy={y + S / 2} r={16} fill="rgba(0,0,0,0.14)" />
             );
           })}
         {arrowEls}

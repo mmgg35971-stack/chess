@@ -4,7 +4,7 @@ import { useApp } from '../AppContext';
 import { Board, type Arrow } from '../board/Board';
 import { MoveList, TIME_CONTROLS } from '../screens/Play';
 import { EvalBar } from '../analysis/EvalBar';
-import { Emblem } from './Emblem';
+import { CoachPortrait } from './Emblem';
 import type { CoachSetup } from './CoachScreens';
 import { coachById, coachLevel } from '../../lib/coach/coaches';
 import { bookMove, chooseCoachMove, type StyleTag } from '../../lib/coach/style';
@@ -400,7 +400,7 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
   const bar = (c: Color) => (
     <div className={'player-bar' + (!outcome && turn === c ? ' active' : '')}>
       <span className="row gap">
-        {c === coachColor && <Emblem coach={coach} size={26} />}
+        {c === coachColor && <CoachPortrait coach={coach} size={28} round />}
         {c === userColor ? userName : `${coach.name[L]} · ${coachLevel(session?.setup.level ?? 3).label[L]}`}
       </span>
       {clocks && <span className="clock" data-testid={'clock-' + c}>{fmtClock(clocks[c])}</span>}
@@ -477,7 +477,7 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
 
       {talk && comments.length > 0 && (
         <div className="card comments" data-testid="comments">
-          <div className="row gap"><Emblem coach={coach} size={22} /><span className="muted small">{t('coachSays')} — {t('simulation')}</span></div>
+          <div className="row gap"><CoachPortrait coach={coach} size={24} round /><span className="muted small">{t('coachSays')} — {t('simulation')}</span></div>
           {comments.map((c) => (
             <div key={c.id} className={'comment ' + c.who} data-testid={'comment-' + c.who}>
               {c.who === 'review' && c.label && (

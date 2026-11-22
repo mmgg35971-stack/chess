@@ -79,13 +79,15 @@ await step('coaches list shows 7 coaches with dated ratings', async () => {
   for (const id of ['carlsen', 'nakamura', 'caruana', 'firouzja', 'tal', 'fischer', 'kasparov']) await page.getByTestId('coach-' + id).waitFor();
   const card = await page.getByTestId('coach-carlsen').textContent();
   expectTrue(card.includes('2823') && card.includes('2026'), 'Carlsen card rating/date: ' + card);
+  const loaded = await page.locator('[data-testid=coach-portrait]').evaluateAll((imgs) => imgs.filter((i) => i.complete && i.naturalWidth > 0).length);
+  expectTrue(loaded === 7, 'all 7 portraits should load, got ' + loaded);
   await page.screenshot({ path: 'test-shots/10-coaches.png', fullPage: true });
 });
 
 await step('coach card: Tal facts, last documented rating, peak, death date, disclaimer', async () => {
   await page.getByTestId('coach-tal').click();
   const txt = await page.locator('.screen').textContent();
-  for (const s of ['2525', '2705', '1936', '1992', 'محاكاة', 'آخر تصنيف موثق', 'ريغا']) expectTrue(txt.includes(s), 'missing ' + s);
+  for (const s of ['2525', '2705', '1936', '1992', 'محاكاة', 'آخر تصنيف موثق', 'ريغا', 'مولّدة بالذكاء الاصطناعي']) expectTrue(txt.includes(s), 'missing ' + s);
   await page.screenshot({ path: 'test-shots/11-coach-tal.png', fullPage: true });
 });
 
