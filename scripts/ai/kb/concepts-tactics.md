@@ -133,7 +133,7 @@ refs: fischer-teaches, renaud-kahn-checkmate, chandler-beat-dad, pachman-tactics
 rel: mating-patterns, deflection, overloading
 pz: backRankMate
 > A king behind its unmoved pawns can be mated by a rook or queen on the back rank. Defend by making "luft" (h3/h6) in time.
-ex: 6k1/5ppp/8/8/8/8/q4PPP/4R1K1 w - - 0 1 | mate | Re8# — the pawns on f7, g7, h7 trap their own king.
+ex: 6k1/5ppp/8/8/8/8/q4PPP/4R1K1 w - - 0 1 | mate | Re8# — the pawns on f7, g7, h7 trap their own king. | arrows=r:e1e8 ; marks=f7 g7 h7
 
 # mating-patterns | tactics | أنماط الكش مات | Mating patterns
 refs: renaud-kahn-checkmate, chandler-beat-dad, polgar-5334, reinfeld-1001-checkmate, vukovic-art-of-attack
@@ -158,7 +158,7 @@ pz: p_kingAttack
 > The bishop sacrifice on h7 (h2) followed by Ng5+ and Qh5. Conditions (Vuković): the bishop reaches h7 with check, a knight can go to g5 safely, the queen can join on the h-file, and the defender has no knight on f6 and no quick way to cover h7 or escape.
 + A pawn on e5 (driving the knight from f6) and a pawn on h4 (supporting Ng5) are typical helpers.
 = Before sacrificing, check the three king moves after Ng5+: ...Kg8, ...Kg6 and ...Kh6.
-ex: rnbq1rk1/pppnbppp/4p3/3pP3/3P3P/3B1N2/PPP2PP1/RNBQK2R w KQ - 0 1 | best Bxh7+ | Bxh7+! Kxh7 Ng5+ — with h4 supporting the knight and the queen ready for h5.
+ex: rnbq1rk1/pppnbppp/4p3/3pP3/3P3P/3B1N2/PPP2PP1/RNBQK2R w KQ - 0 1 | best Bxh7+ | Bxh7+! Kxh7 Ng5+ — with h4 supporting the knight and the queen ready for h5. | arrows=g:d3h7 g:f3g5 g:d1h5 ; marks=h7
 
 # attack-castled-king | attack | الهجوم على الملك المبيّت | Attacking the castled king
 refs: vukovic-art-of-attack, aagaard-attack-defence, dvoretsky-attack-defence, euwe-kramer-middlegame, smirin-kid-warfare, polgar-fischers-record

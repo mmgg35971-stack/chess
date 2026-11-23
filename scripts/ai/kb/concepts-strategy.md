@@ -86,6 +86,24 @@ pz: p_defense
 > "A cramped position carries the germ of defeat" (Tarrasch's idea): the defending side must free itself by exchanges and a timely pawn break — or, in modern systems like the Hedgehog, stay compact and wait for the right moment to strike.
 = Free yourself with exchanges and the key pawn break (...c5, ...e5, ...d5, ...f5 depending on the structure).
 
+# pawn-structures | strategy | الهياكل البيدقية | Pawn structures (overview)
+refs: soltis-pawn-structure, flores-structures, kmoch-pawn-power, pachman-strategy, nimzowitsch-my-system, baburin-iqp
+rel: isolated-pawn, carlsbad, maroczy, hedgehog, stonewall, pawn-chain, hanging-pawns
+pz: c_middlegame
+> The pawn structure is the skeleton of the position: it decides which squares are strong or weak, which pieces are good or bad, where each side should play and which pawn breaks are available. Knowing the main structure families gives you the plan even without knowing the opening theory.
++ Isolated queen's pawn (IQP): activity and attack for its owner, a blockade and endgame target for the opponent.
++ Carlsbad (QGD Exchange): White's minority attack b4–b5; Black's kingside play or ...c5.
++ Maróczy Bind (c4+e4 vs a Sicilian): White has space; Black waits for ...b5 or ...d5.
++ Hedgehog (a6, b6, d6, e6): compact defence, then ...b5 or ...d5 at the right moment.
++ Pawn chains (French, King's Indian): attack the base of the chain; play on the side the chain points to.
++ Stonewall (c6, d5, e6, f5): control of e4 at the cost of a hole on e5 and a bad light-squared bishop.
+= When you reach a position, first name the structure, then recall its standard plans for both sides, then place your pieces for that plan.
+! Moving pawns without asking how the structure changes: every pawn move is permanent.
+line: d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5 Bg5 c6 e3 Be7 Bd3 Nbd7 Qc2 O-O Nf3 Re8 O-O Nf8 Rab1 | Carlsbad: the minority attack b4–b5. | arrows=g:b2b4 g:b4b5 r:c6c5 ; marks=c6 d5
+line: e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 c4 Bg7 Be3 Nf6 Nc3 | Maróczy Bind: the c4/e4 pawns control d5. | arrows=b:b7b5 b:d7d5 ; marks=c4 e4 d5
+line: e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6 | French chain: Black attacks the base d4. | arrows=g:c5d4 g:b6d4 g:c6d4 ; marks=d4 e5
+line: d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O Nc6 d5 Ne7 Ne1 Nd7 Nd3 f5 | King's Indian chains: Black's ...f5–f4 on the kingside, White's c4–c5 on the queenside. | arrows=g:f5f4 g:g6g5 b:c4c5 ; marks=d5 e4 e5
+
 # pawn-breaks | strategy | الكسر البيدقي (الرافعة) | Pawn breaks (levers)
 refs: kmoch-pawn-power, shankland-small-steps, marovic-dynamic, flores-structures, soltis-pawn-structure
 rel: pawn-chain, centre, plan-making
@@ -184,7 +202,7 @@ pz: c_middlegame
 > A d-pawn with no pawns on the c- and e-files. It gives its owner space, open lines and outposts on e5/c5 (for White), but it is a weakness in the endgame.
 + The IQP side: keep pieces, attack on the kingside, prepare the d4–d5 break.
 + The defender: blockade on d5 (ideally a knight), exchange pieces, attack the pawn in the endgame.
-line: d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3 Nc6 g3 Nf6 Bg2 Be7 O-O O-O | The Tarrasch Defence: Black accepts an isolated d5-pawn for free piece play.
+line: d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3 Nc6 g3 Nf6 Bg2 Be7 O-O O-O | The Tarrasch Defence: Black accepts an isolated d5-pawn for free piece play. | arrows=g:d5d4 r:c3d5 ; marks=d5 d4
 
 # hanging-pawns | strategy | البيادق المعلقة | Hanging pawns
 refs: baburin-iqp, flores-structures, pachman-strategy
@@ -212,7 +230,7 @@ rel: carlsbad, weak-pawns, pawn-breaks
 pz: c_middlegame
 > In the Carlsbad structure (QGD Exchange), White's two queenside pawns (a and b) advance against Black's three (a7, b7, c6) with b4–b5 to create a weak pawn on c6 or d5.
 + Black's counterplay: kingside attack with ...Ne4, ...f5, or the ...Nd6/...Ne4 regrouping, or answering b5 with ...c5.
-line: d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5 Bg5 c6 e3 Be7 Bd3 Nbd7 Qc2 O-O Nf3 Re8 O-O Nf8 Rab1 | The Carlsbad structure: White prepares b4–b5.
+line: d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5 Bg5 c6 e3 Be7 Bd3 Nbd7 Qc2 O-O Nf3 Re8 O-O Nf8 Rab1 | The Carlsbad structure: White prepares b4–b5. | arrows=g:b2b4 g:b4b5 ; marks=c6
 
 # carlsbad | strategy | بنية كارلسباد | The Carlsbad structure
 refs: flores-structures, sadler-qgd, soltis-pawn-structure
@@ -225,21 +243,21 @@ refs: flores-structures, soltis-pawn-structure, alburt-black-explained
 rel: space, hedgehog, sicilian-ideas
 pz: c_middlegame
 > White pawns on c4 and e4 against a Sicilian: they stop ...d5 and ...b5, giving White a space advantage. Black plays patiently with ...a5, ...Nd7–c5, ...f5 or ...b5 breaks at the right moment.
-line: e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 c4 Bg7 Be3 Nf6 Nc3 | The Accelerated Dragon met by the Maróczy Bind.
+line: e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 c4 Bg7 Be3 Nf6 Nc3 | The Accelerated Dragon met by the Maróczy Bind. | marks=c4 e4 d5
 
 # hedgehog | strategy | القنفذ | The Hedgehog
 refs: flores-structures, suba-dynamic, watson-secrets, marin-english
 rel: cramped-position, maroczy, pawn-breaks
 pz: c_middlegame
 > Black pawns on a6, b6, d6, e6 behind White's c4/e4: a compact, "cramped but solid" set-up; Black waits for ...b5 or ...d5 to explode at the right moment.
-line: c4 c5 Nf3 Nf6 g3 b6 Bg2 Bb7 O-O e6 Nc3 Be7 d4 cxd4 Qxd4 d6 Rd1 a6 | A typical Hedgehog from the English.
+line: c4 c5 Nf3 Nf6 g3 b6 Bg2 Bb7 O-O e6 Nc3 Be7 d4 cxd4 Qxd4 d6 Rd1 a6 | A typical Hedgehog from the English. | arrows=g:b6b5 g:d6d5 ; marks=a6 b6 d6 e6
 
 # stonewall | strategy | الجدار الحجري | The Stonewall
 refs: flores-structures, williams-classical-dutch, soltis-pawn-structure
 rel: weak-squares, good-bad-bishop, dutch-ideas
 pz: c_middlegame
 > Pawns on c6, d5, e6, f5 (or c3, d4, e3, f4 for White): a solid wall giving control of e4 (or e5) but a hole on e5 (e4) and a bad light-squared bishop.
-line: d4 f5 c4 Nf6 g3 e6 Bg2 d5 Nf3 c6 O-O Bd6 | The Dutch Stonewall.
+line: d4 f5 c4 Nf6 g3 e6 Bg2 d5 Nf3 c6 O-O Bd6 | The Dutch Stonewall. | marks=g:e4 r:e5
 
 # exchanges | strategy | التبادلات الصحيحة | Good and bad exchanges
 refs: nimzowitsch-my-system, capablanca-fundamentals, silman-reassess, shereshevsky-endgame-strategy

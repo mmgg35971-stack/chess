@@ -95,9 +95,10 @@ describe('offline coach (no key, no internet)', () => {
   const tal = COACHES.find((c) => c.id === 'tal')!;
   const base = { lang: 'ar' as const, coach: carlsen, stats: coachGameStats('carlsen'), kx: kindex };
 
-  it('is the default and needs no key', () => {
-    expect(DEFAULT_AI.provider).toBe('local');
-    expect(loadAiConfig().provider).toBe('local'); // nothing stored
+  it('the default needs no key (free model online, offline coach as fallback)', () => {
+    expect(DEFAULT_AI.provider).toBe('free');
+    expect(DEFAULT_AI.apiKey).toBe('');
+    expect(loadAiConfig().provider).toBe('free'); // nothing stored
   });
 
   it('has Arabic text for every concept', () => {
@@ -128,7 +129,7 @@ describe('offline coach (no key, no internet)', () => {
     expect(r.topic).toBe('opposition');
     const segs = parseReply(r.text);
     const kinds = segs.map((x) => x.kind);
-    expect(kinds).toContain('board');
+    expect(kinds.filter((k) => k === 'board' || k === 'quiz' || k === 'line').length).toBeGreaterThanOrEqual(2);
     expect(kinds).toContain('puzzles');
     expect(kinds).toContain('ask');
     expect(segs.find((x) => x.kind === 'link')).toMatchObject({ type: 'lesson', id: 'opposition-1' });
@@ -168,12 +169,39 @@ describe('offline coach (no key, no internet)', () => {
   });
 });
 
+describe('rich visuals', () => {
+  it('parses coloured arrows, marks, per-move notes and quizzes', () => {
+    const segs = parseReply('[[board fen="start" arrows="g:e2e4 r:d7d5 zz" marks="g:d5 e4"]]\n[[line fen="start" moves="e4 e5" notes="a|b" arrows="g:g1f3"]]\n[[quiz fen="6k1/5ppp/8/8/8/8/q4PPP/4R1K1 w - - 0 1" goal="mate" answer="Re8# Qxa2"]]');
+    const b = segs[0] as any, l = segs[1] as any, q = segs[2] as any;
+    expect(b.arrows.map((a: any) => a.from + a.to)).toEqual(['e2e4', 'd7d5']);
+    expect(b.arrows[0].color).not.toBe(b.arrows[1].color);
+    expect(b.marks.map((m: any) => m.sq)).toEqual(['d5', 'e4']);
+    expect(l.notes).toEqual(['a', 'b']);
+    expect(l.arrows).toHaveLength(1);
+    expect(q.kind).toBe('quiz');
+    expect(q.answers).toEqual(['Re8#']); // illegal answers are dropped
+    expect(q.goal).toBe('mate');
+  });
+
+  it('turns checked examples into exercises and shows several examples', async () => {
+    const carlsen = COACHES.find((c) => c.id === 'carlsen')!;
+    const r = await localReply({ lang: 'ar', coach: carlsen, stats: null, kx: kindex, question: 'اشرح لي الهياكل البيدقية' });
+    expect(r.topic).toBe('pawn-structures');
+    const segs = parseReply(r.text);
+    expect(segs.filter((x) => x.kind === 'line').length).toBe(4);
+    expect(segs.some((x) => x.kind === 'puzzles')).toBe(false); // no unrelated puzzles for a strategic topic
+    expect((segs.find((x) => x.kind === 'line') as any).arrows.length).toBeGreaterThan(0);
+    const mate = parseReply((await localReply({ lang: 'ar', coach: carlsen, stats: null, kx: kindex, question: 'ضعف الصف الأخير' })).text);
+    expect(mate.some((x) => x.kind === 'quiz' && x.goal === 'mate')).toBe(true);
+  });
+});
+
 describe('reply tags', () => {
   it('turns tags into boards, lines, puzzles and links', () => {
     const segs = parseReply('Look:\n[[board fen="8/8/8/4k3/8/4K3/4P3/8 w - - 0 1" arrows="e3d3, e3f3" caption="Opposition"]]\nThen [[line fen="start" moves="1. e4 e5 2. Nf3 Nc6 3. Bb5" caption="Ruy"]]\n[[puzzles theme="fork" n="9"]] [[topic id="eg-opposition"]]');
     expect(segs.map((s) => s.kind)).toEqual(['text', 'board', 'text', 'line', 'puzzles', 'link']);
     const b = segs[1] as Extract<typeof segs[number], { kind: 'board' }>;
-    expect(b.arrows).toEqual([['e3', 'd3'], ['e3', 'f3']]);
+    expect(b.arrows.map((a) => a.from + a.to)).toEqual(['e3d3', 'e3f3']);
     const l = segs[3] as Extract<typeof segs[number], { kind: 'line' }>;
     expect(l.sans).toEqual(['e4', 'e5', 'Nf3', 'Nc6', 'Bb5']);
     expect(l.fens).toHaveLength(6);

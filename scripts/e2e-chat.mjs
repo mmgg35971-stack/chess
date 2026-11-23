@@ -69,20 +69,78 @@ const answer = [
 await page.goto(BASE);
 await page.waitForSelector('[data-testid=nav-coaches]');
 
-await step('the chat works with no key and no internet (offline coach is the default)', async () => {
+async function tapSquare(scope, sq, orientation = 'w') {
+  const box = await scope.locator('svg.board').boundingBox();
+  const f = 'abcdefgh'.indexOf(sq[0]), r = Number(sq[1]) - 1;
+  const col = orientation === 'w' ? f : 7 - f, row = orientation === 'w' ? 7 - r : r;
+  const sz = box.width / 8;
+  await page.mouse.click(box.x + col * sz + sz / 2, box.y + row * sz + sz / 2);
+}
+const rich = [
+  'الصف الأخير الضعيف من أشهر الأفكار التكتيكية (Renaud & Kahn, The Art of the Checkmate).',
+  '[[board fen="6k1/5ppp/8/8/8/8/q4PPP/4R1K1 w - - 0 1" arrows="r:e1e8 b:a2f2" marks="r:f7 r:g7 r:h7" caption="البيادق تحبس ملكها"]]',
+  '[[line fen="start" moves="e4 e5 Nf3 Nc6" notes="يأخذ المركز|يرد في المركز|يهاجم e5|يحمي e5" arrows="g:f1b5" caption="افتتاح مفتوح"]]',
+  '[[quiz fen="6k1/5ppp/8/8/8/8/q4PPP/4R1K1 w - - 0 1" goal="mate" prompt="الأبيض يلعب ويعطي كش مات" hint="الصف الثامن" explain="البيادق تحبس الملك."]]',
+  '[[ask q="اشرح لي المات المخنوق"]]',
+  'جرّب اللغز وأخبرني: لماذا لا يستطيع الأسود الهرب؟',
+].join('\n');
+
+await step('by default the chat needs no key: a free AI model answers with boards, arrows, commented lines and a quiz', async () => {
   await page.getByTestId('nav-coaches').click();
   await page.getByTestId('coach-carlsen').click();
   await page.getByTestId('coach-chat').click();
   await page.getByTestId('ch-sugg').first().waitFor();
   expectTrue(await page.getByTestId('ch-nokey').count() === 0, 'no "add a key" card');
+  scriptFree.push({ body: { choices: [{ message: { content: rich } }] } });
+  await page.getByTestId('ch-input').fill('اشرح لي ضعف الصف الأخير');
+  await page.getByTestId('ch-send').click();
+  await page.getByTestId('ch-quiz').waitFor({ timeout: 30000 });
+  const req = freeRequests[0];
+  expectTrue(req && !req.headers.authorization, 'no key sent');
+  expectTrue(req.body.tools?.length === 3, 'tools offered to the free model');
+  expectTrue(/quiz fen=/.test(req.body.messages[0].content) && /arrows=/.test(req.body.messages[0].content), 'visual tags explained in the prompt');
+  await page.getByTestId('ch-board').first().waitFor();
+  const line = page.getByTestId('ch-line').first();
+  await line.getByTestId('ch-next').click();
+  expectTrue(/يأخذ المركز/.test(await line.getByTestId('ch-note').innerText()), 'move comment shown');
+  await page.screenshot({ path: 'test-shots/42-ai-visual.png', fullPage: true });
+});
+
+await step('the quiz is solved by moving a piece and checked on the device', async () => {
+  const quiz = page.getByTestId('ch-quiz').first();
+  await quiz.scrollIntoViewIfNeeded();
+  await tapSquare(quiz, 'e1'); await page.waitForTimeout(150); await tapSquare(quiz, 'e8');
+  await quiz.getByTestId('ch-quiz-ok').waitFor({ timeout: 30000 });
+});
+
+await step('when the free service is down, the offline coach answers instead (pawn structures with 4 examples)', async () => {
+  scriptFree.push({ status: 500, body: { error: 'down' } }, { status: 500, body: { error: 'down' } });
+  await page.getByTestId('ch-input').fill('اشرح لي الهياكل البيدقية');
+  await page.getByTestId('ch-send').click();
+  await page.getByText('فأجابك المدرب المحلي').waitFor({ timeout: 30000 });
+  const reply = page.getByTestId('ch-coach').nth(1);
+  await reply.getByTestId('ch-line').nth(3).waitFor();
+  expectTrue(/الهياكل البيدقية/.test(await reply.innerText()), 'pawn structures explained');
+});
+
+await step('the offline coach (no internet) explains, gives exercises and relevant puzzles', async () => {
+  await page.getByTestId('ch-settings').click();
+  await page.getByTestId('ai-p-local').click();
+  expectTrue(await page.getByTestId('ai-key').count() === 0, 'no key field');
+  await page.getByTestId('ai-save').click();
+  await page.getByTestId('nav-coaches').click();
+  await page.getByTestId('coach-carlsen').click();
+  await page.getByTestId('coach-chat').click();
   expectTrue(/بدون مفتاح/.test(await page.getByTestId('ch-mode').innerText()), 'offline mode label');
+  await page.getByTestId('ch-clear').click();
+  const before = freeRequests.length;
   await page.getByTestId('ch-sugg').nth(1).click(); // opposition
   await page.getByTestId('ch-coach').waitFor({ timeout: 30000 });
   await page.getByTestId('ch-board').first().waitFor();
   await page.getByTestId('ch-pz').first().waitFor({ timeout: 30000 });
   const txt = await page.getByTestId('ch-coach').first().innerText();
   expectTrue(/المعارضة/.test(txt) && /Dvoretsky|Capablanca/.test(txt), 'reply text: ' + txt.slice(0, 200));
-  expectTrue(requests.length === 0, 'no model call in offline mode');
+  expectTrue(freeRequests.length === before && requests.length === 0, 'no network call in offline mode');
   await page.screenshot({ path: 'test-shots/41-offline-coach.png', fullPage: true });
 });
 
@@ -110,29 +168,6 @@ await step('the honest note lists the books in the library', async () => {
   const txt = await page.getByTestId('ch-info-body').innerText();
   expectTrue(/155|1\d\d/.test(txt) && !/\{\w+\}/.test(txt) && /Capablanca/.test(txt), 'note: ' + txt.slice(0, 300));
   await page.getByTestId('ch-info').click();
-});
-
-await step('the free online mode (no key) answers, and falls back to the offline coach when it fails', async () => {
-  await page.getByTestId('ch-settings').click();
-  await page.getByTestId('ai-p-free').click();
-  expectTrue(await page.getByTestId('ai-key').count() === 0, 'no key field for the free mode');
-  await page.getByTestId('ai-save').click();
-  await page.getByTestId('nav-coaches').click();
-  await page.getByTestId('coach-carlsen').click();
-  await page.getByTestId('coach-chat').click();
-  await page.getByTestId('ch-clear').click();
-  scriptFree.push({ body: { choices: [{ message: { content: 'هذا رد النموذج المجاني عن البيدق المعزول.' } }] } });
-  await page.getByTestId('ch-input').fill('اشرح البيدق المعزول');
-  await page.getByTestId('ch-send').click();
-  await page.getByText('هذا رد النموذج المجاني').waitFor({ timeout: 20000 });
-  const req = freeRequests[0];
-  expectTrue(req && !req.headers.authorization, 'free mode sends no key');
-  expectTrue(/isolated-pawn/.test(req.body.messages[0].content), 'matching concepts sent as context');
-  scriptFree.push({ status: 500, body: { error: 'down' } });
-  await page.getByTestId('ch-input').fill('اشرح لي وضعية لوسينا');
-  await page.getByTestId('ch-send').click();
-  await page.getByText('فأجابك المدرب المحلي').waitFor({ timeout: 20000 });
-  await page.getByTestId('ch-coach').nth(1).getByTestId('ch-board').waitFor();
 });
 
 await step('adding a key in AI settings (stored locally, not in backups)', async () => {

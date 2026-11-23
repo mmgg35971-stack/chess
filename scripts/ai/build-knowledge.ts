@@ -11,7 +11,7 @@ import { THEMES } from '../../src/lib/puzzles/explain';
 import { INDEXED_CATEGORIES } from '../../src/lib/puzzles/categories';
 
 export interface KRef { id: string; author: string; title: string; year: number; areas: string[]; coaches: string[]; ideas: string[] }
-export interface KExample { fen?: string; moves?: string; claim?: string; note: string }
+export interface KExample { fen?: string; moves?: string; claim?: string; note: string; arrows?: string; marks?: string }
 export interface KConcept {
   id: string; area: string; title: { ar: string; en: string }; refs: string[]; rel: string[]; pz?: string;
   summary: string; ideas: string[]; how: string[]; mistakes: string[]; examples: KExample[];
@@ -20,6 +20,15 @@ export interface KConcept {
 }
 
 const DIR = 'scripts/ai/kb';
+/** "arrows=g:e2e4 r:d8h4 ; marks=d5 e5" → { arrows, marks } */
+function visual(v?: string): { arrows?: string; marks?: string } {
+  const o: { arrows?: string; marks?: string } = {};
+  for (const part of (v ?? '').split(';')) {
+    const m = /^\s*(arrows|marks)\s*=\s*(.+?)\s*$/.exec(part);
+    if (m) o[m[1] as 'arrows' | 'marks'] = m[2];
+  }
+  return o;
+}
 const files = readdirSync(DIR).filter((f) => f.endsWith('.md')).sort();
 const refs: KRef[] = [];
 const concepts: KConcept[] = [];
@@ -58,11 +67,11 @@ for (const f of files.filter((f) => f.startsWith('concepts-'))) {
     else if (line.startsWith('= ')) cur.how.push(line.slice(2));
     else if (line.startsWith('! ')) cur.mistakes.push(line.slice(2));
     else if (line.startsWith('ex:')) {
-      const [fen, claim, note] = line.slice(3).split('|').map((s) => s.trim());
-      cur.examples.push({ fen, claim: claim || undefined, note: note ?? '' });
+      const [fen, claim, note, vis] = line.slice(3).split('|').map((s) => s.trim());
+      cur.examples.push({ fen, claim: claim || undefined, note: note ?? '', ...visual(vis) });
     } else if (line.startsWith('line:')) {
-      const [moves, note] = line.slice(5).split('|').map((s) => s.trim());
-      cur.examples.push({ moves, note: note ?? '' });
+      const [moves, note, vis] = line.slice(5).split('|').map((s) => s.trim());
+      cur.examples.push({ moves, note: note ?? '', ...visual(vis) });
     } else problems.push(`${f}: ${cur.id}: unknown line "${line.slice(0, 60)}"`);
   }
 }
@@ -116,6 +125,8 @@ for (const c of concepts) {
   for (const r of c.rel) if (!conIds.has(r)) problems.push(`${c.id}: unknown related concept ${r}`);
   if (c.pz && !(c.pz in THEMES) && c.pz !== 'opening' && !INDEXED_CATEGORIES.some((x) => x.id === c.pz)) problems.push(`${c.id}: unknown puzzle theme ${c.pz}`);
   for (const ex of c.examples) {
+    for (const tok of (ex.arrows ?? '').split(/\s+/).filter(Boolean)) if (!/^([grby]:)?[a-h][1-8][a-h][1-8]$/.test(tok)) problems.push(`${c.id}: bad arrow ${tok}`);
+    for (const tok of (ex.marks ?? '').split(/\s+/).filter(Boolean)) if (!/^([grby]:)?[a-h][1-8]$/.test(tok)) problems.push(`${c.id}: bad mark ${tok}`);
     if (ex.fen) {
       try { new Chess(ex.fen); } catch (e) { problems.push(`${c.id}: illegal FEN ${ex.fen}: ${(e as Error).message}`); }
     } else if (ex.moves) {
@@ -124,6 +135,15 @@ for (const c of concepts) {
         try { g.move(m); } catch { problems.push(`${c.id}: illegal move ${m} in line "${ex.moves}"`); break; }
       }
       ex.fen = g.fen(); // final position of the line, used as the example board
+    }
+    if (ex.fen && ex.arrows) {
+      const g = new Chess(ex.fen);
+      const reached = new Set<string>(); // plan arrows may continue from where an earlier arrow ends
+      for (const tok of ex.arrows.split(/\s+/).filter(Boolean)) {
+        const sq = tok.replace(/^[grby]:/, '');
+        if (!g.get(sq.slice(0, 2) as never) && !reached.has(sq.slice(0, 2))) problems.push(`${c.id}: arrow ${tok} starts on an empty square`);
+        reached.add(sq.slice(2, 4));
+      }
     }
   }
 }

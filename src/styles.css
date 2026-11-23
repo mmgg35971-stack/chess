@@ -245,3 +245,8 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color:
 .ai-prov.on { border-color: var(--accent); }
 .ai-prov input { margin-top: 4px; }
 .ch-ask { display: block; width: 100%; margin: 4px 0; font-size: 13px; }
+.ch-note { font-size: 13px; padding: 6px 8px; border-radius: 8px; background: var(--bg2); border-inline-start: 3px solid var(--accent); }
+.ch-quiz { padding: 8px; border: 1px dashed var(--accent); border-radius: 12px; }
+.ch-quiz-head { font-size: 14px; }
+.ch-quiz-ok { color: #3c9a5f; font-weight: 600; }
+.ch-quiz-bad { color: #d05050; font-weight: 600; }

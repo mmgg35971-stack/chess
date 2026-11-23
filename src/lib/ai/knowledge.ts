@@ -4,7 +4,7 @@
 import { Bm25 } from './books';
 
 export interface KRef { id: string; author: string; title: string; year: number; areas: string[]; coaches: string[]; ideas: string[] }
-export interface KExample { fen?: string; moves?: string; claim?: string; note: string }
+export interface KExample { fen?: string; moves?: string; claim?: string; note: string; arrows?: string; marks?: string }
 export interface KConcept {
   id: string; area: string; title: { ar: string; en: string }; refs: string[]; rel: string[]; pz?: string;
   summary: string; ideas: string[]; how: string[]; mistakes: string[]; examples: KExample[];
@@ -42,7 +42,7 @@ export class KnowledgeIndex {
       keyIdeas: c.ideas, howToPlay: c.how, commonMistakes: c.mistakes,
       sources: c.refs.map((r) => this.refById.get(r)).filter(Boolean).map((r) => `${r!.author}, ${r!.title} (${r!.year})`),
       related: c.rel.map((r) => ({ id: r, title: this.byId.get(r)?.title.en })),
-      examples: c.examples.map((e) => ({ fen: e.fen, moves: e.moves, verified: e.claim ? `Stockfish-checked: ${e.claim}` : e.moves ? 'legal line' : undefined, note: e.note })),
+      examples: c.examples.map((e) => ({ fen: e.fen, moves: e.moves, arrows: e.arrows, marks: e.marks, verified: e.claim ? `Stockfish-checked: ${e.claim}` : e.moves ? 'legal line' : undefined, note: e.note })),
       puzzleTheme: c.pz,
     };
   }

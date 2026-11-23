@@ -95,7 +95,8 @@ function BoardSeg({ seg }: { seg: Extract<Segment, { kind: 'board' }> }) {
   return (
     <div className="ch-board" data-testid="ch-board">
       <Board fen={seg.fen} orientation={seg.flip ? 'b' : 'w'} movable={null} targets={() => []} needsPromotion={() => false} onMove={() => false}
-        arrows={seg.arrows.map(([from, to]) => ({ from: from as Square, to: to as Square }))} checkSquare={checkedKingSquare(pos)} {...bp} />
+        arrows={seg.arrows.map((a) => ({ from: a.from as Square, to: a.to as Square, color: a.color }))}
+        highlights={seg.marks.map((m) => ({ sq: m.sq as Square, color: m.color }))} checkSquare={checkedKingSquare(pos)} {...bp} />
       {seg.caption && <div className="ch-cap">{seg.caption}</div>}
       <div className="row gap wrap">
         <button className="btn small" onClick={check} disabled={busy}>{busy ? '…' : t('ch_check')}</button>
@@ -108,7 +109,8 @@ function BoardSeg({ seg }: { seg: Extract<Segment, { kind: 'board' }> }) {
 function LineSeg({ seg }: { seg: Extract<Segment, { kind: 'line' }> }) {
   const { t } = useApp();
   const bp = useBoardProps();
-  const [i, setI] = useState(seg.sans.length);
+  // with move comments the line starts from the beginning, so the student follows it step by step
+  const [i, setI] = useState(seg.notes.some(Boolean) ? 0 : seg.sans.length);
   const fen = seg.fens[i];
   const last = useMemo(() => {
     if (i === 0) return null;
@@ -124,9 +126,13 @@ function LineSeg({ seg }: { seg: Extract<Segment, { kind: 'line' }> }) {
   };
   return (
     <div className="ch-board" data-testid="ch-line">
-      <Board fen={fen} orientation={blackFirst ? 'b' : 'w'} movable={null} targets={() => []} needsPromotion={() => false} onMove={() => false}
-        lastMove={last} checkSquare={checkedKingSquare(new Chess(fen))} {...bp} />
+      <Board fen={fen} orientation={seg.flip || blackFirst ? 'b' : 'w'} movable={null} targets={() => []} needsPromotion={() => false} onMove={() => false}
+        lastMove={last}
+        arrows={i === seg.sans.length && (seg.arrows.length || seg.marks.length) ? seg.arrows.map((a) => ({ from: a.from as Square, to: a.to as Square, color: a.color })) : last ? [{ from: last[0], to: last[1], color: 'rgba(21,140,60,0.6)' }] : []}
+        highlights={i === seg.sans.length ? seg.marks.map((m) => ({ sq: m.sq as Square, color: m.color })) : []}
+        checkSquare={checkedKingSquare(new Chess(fen))} {...bp} />
       {seg.caption && <div className="ch-cap">{seg.caption}</div>}
+      {i > 0 && seg.notes[i - 1] && <div className="ch-note" data-testid="ch-note"><b dir="ltr">{label(i - 1)}{seg.sans[i - 1]}</b> {seg.notes[i - 1]}</div>}
       <div className="ch-moves" dir="ltr">
         {seg.sans.map((s, k) => (
           <button key={k} className={'ch-mv' + (k + 1 === i ? ' on' : '')} onClick={() => setI(k + 1)}>{label(k)}{s}</button>
@@ -140,6 +146,94 @@ function LineSeg({ seg }: { seg: Extract<Segment, { kind: 'line' }> }) {
         <button className="btn small" onClick={() => setI(seg.sans.length)} disabled={i === seg.sans.length}>⏭</button>
       </div>
       {seg.bad && <div className="small muted">{t('ch_badMove', { san: seg.bad })}</div>}
+    </div>
+  );
+}
+
+/** Numeric evaluation (centipawns, White's view; mates as ±100000) for checking quiz answers. */
+async function scoreOf(fen: string, depth = 13): Promise<number | null> {
+  try {
+    const g = new Chess(fen);
+    if (g.isCheckmate()) return g.turn() === 'w' ? -100000 : 100000;
+    if (g.isGameOver()) return 0;
+    const r = await getEngine().search(fen, { depth });
+    const sc = r.lines[0]?.score;
+    if (!sc) return null;
+    const v = sc.mate !== undefined ? (sc.mate > 0 ? 100000 - sc.mate : -100000 - sc.mate) : sc.cp ?? 0;
+    return g.turn() === 'w' ? v : -v;
+  } catch { return null; }
+}
+
+/** An interactive exercise: the student plays a move on the board and gets feedback checked by Stockfish. */
+function QuizSeg({ seg }: { seg: Extract<Segment, { kind: 'quiz' }> }) {
+  const { t } = useApp();
+  const bp = useBoardProps();
+  const start = useMemo(() => new Chess(seg.fen), [seg.fen]);
+  const side = start.turn();
+  const [fen, setFen] = useState(seg.fen);
+  const [state, setState] = useState<'idle' | 'checking' | 'right' | 'wrong'>('idle');
+  const [last, setLast] = useState<[Square, Square] | null>(null);
+  const [played, setPlayed] = useState('');
+  const [solution, setSolution] = useState<{ san: string; from: Square; to: Square } | null>(null);
+  const [showHint, setShowHint] = useState(false);
+  const strip = (x: string) => x.replace(/[+#!?]/g, '');
+
+  const bestMove = async () => {
+    if (seg.answers[0]) { const m = new Chess(seg.fen).move(seg.answers[0]); return { san: m.san, from: m.from as Square, to: m.to as Square }; }
+    const r = await analyseFen(seg.fen, 14);
+    const san = r?.best[0]?.[0];
+    if (!san) return null;
+    const m = new Chess(seg.fen).move(san);
+    return { san: m.san, from: m.from as Square, to: m.to as Square };
+  };
+
+  const onMove = (from: Square, to: Square, promotion?: string) => {
+    if (state === 'checking' || state === 'right') return false;
+    const g = new Chess(seg.fen);
+    let mv;
+    try { mv = g.move({ from, to, promotion: promotion ?? 'q' }); } catch { return false; }
+    setFen(g.fen()); setLast([from, to]); setPlayed(mv.san); setState('checking');
+    (async () => {
+      let ok = seg.answers.some((a) => strip(a) === strip(mv.san));
+      if (!ok && !(seg.answers.length && seg.goal === 'best')) {
+        const after = await scoreOf(g.fen());
+        const mover = (v: number) => (side === 'w' ? v : -v);
+        if (after !== null) {
+          if (seg.goal === 'mate') ok = g.isCheckmate() || mover(after) > 90000;
+          else if (seg.goal === 'win') ok = mover(after) >= 200;
+          else if (seg.goal === 'draw') ok = mover(after) >= -100;
+          else {
+            const before = await scoreOf(seg.fen);
+            ok = before !== null && mover(before) - mover(after) <= 50;
+          }
+        }
+      }
+      setState(ok ? 'right' : 'wrong');
+      if (!ok) setSolution(await bestMove());
+    })();
+    return true;
+  };
+
+  const retry = () => { setFen(seg.fen); setLast(null); setState('idle'); setPlayed(''); };
+  const reveal = async () => { setSolution(await bestMove()); };
+  const targets = (from: Square) => (state === 'idle' || state === 'wrong') && fen === seg.fen ? new Chess(seg.fen).moves({ square: from, verbose: true }).map((m) => m.to as Square) : [];
+  const arrows = solution && state !== 'right' && fen === seg.fen ? [{ from: solution.from, to: solution.to, color: 'rgba(21,140,60,0.85)' }] : [];
+  return (
+    <div className="ch-board ch-quiz" data-testid="ch-quiz">
+      <div className="ch-quiz-head">🎯 <b>{seg.prompt || t(side === 'w' ? 'ch_quizWhite' : 'ch_quizBlack')}</b></div>
+      <Board fen={fen} orientation={seg.flip ? 'b' : 'w'} movable={fen === seg.fen && state !== 'checking' ? side : null}
+        targets={targets} needsPromotion={(f, to) => { const p = new Chess(seg.fen).get(f); return !!p && p.type === 'p' && (to[1] === '8' || to[1] === '1'); }}
+        onMove={onMove} lastMove={last} arrows={arrows} checkSquare={checkedKingSquare(new Chess(fen))} {...bp} showLegal />
+      {state === 'checking' && <div className="small muted">{t('ch_quizChecking')}</div>}
+      {state === 'right' && <div className="ch-quiz-ok" data-testid="ch-quiz-ok">✅ {t('ch_quizRight', { san: played })}{seg.explain ? ' ' + seg.explain : ''}</div>}
+      {state === 'wrong' && <div className="ch-quiz-bad" data-testid="ch-quiz-bad">❌ {t('ch_quizWrong', { san: played })}</div>}
+      {solution && state !== 'right' && <div className="small">{t('ch_quizSolution', { san: solution.san })}{seg.explain ? ' ' + seg.explain : ''}</div>}
+      <div className="row gap wrap">
+        {state === 'wrong' && <button className="btn small" onClick={retry}>{t('ch_quizRetry')}</button>}
+        {seg.hint && state !== 'right' && <button className="btn small" onClick={() => setShowHint(true)}>{t('ch_quizHint')}</button>}
+        {state !== 'right' && !solution && <button className="btn small" onClick={reveal} data-testid="ch-quiz-show">{t('ch_quizShow')}</button>}
+      </div>
+      {showHint && seg.hint && <div className="small muted">💡 {seg.hint}</div>}
     </div>
   );
 }
@@ -204,6 +298,7 @@ function CoachReply({ text, onAsk }: { text: string; onAsk: (q: string) => void 
           case 'line': return <LineSeg key={i} seg={s} />;
           case 'puzzles': return <PuzzlesSeg key={i} seg={s} />;
           case 'link': return <LinkSeg key={i} seg={s} />;
+          case 'quiz': return <QuizSeg key={i} seg={s} />;
           case 'ask': return <button key={i} className="ch-chip ch-ask" onClick={() => onAsk(s.q)} data-testid="ch-ask">{s.q} ›</button>;
           case 'invalid': return <div key={i} className="small muted">{t('ch_badPos')}</div>;
         }
@@ -218,6 +313,8 @@ function errorText(e: unknown, t: ReturnType<typeof useApp>['t']) {
 }
 
 let httpP: Promise<Http> | null = null;
+let freeFails = 0;
+let freeDownUntil = 0;
 const http = () => (httpP ??= defaultHttp());
 
 export function CoachChat({ id }: { id: string }) {
@@ -263,17 +360,26 @@ export function CoachChat({ id }: { id: string }) {
       });
       const history: Msg[] = withQ.filter((m) => !m.error).slice(-HISTORY).map((m) => m.role === 'user' ? { role: 'user', content: m.text } : { role: 'assistant', content: m.text });
       if (cfg.provider === 'free') {
-        // the free service may not support tools: give it the matching concepts up front instead
-        const ctx = matchConcepts(q, kx, 2).map((m) => kx.view(m.c));
-        system += `
-
-TOOLS ARE NOT AVAILABLE in this mode. Here are the concepts from the knowledge network that match the question (use them as your main source and name their source books):
-${JSON.stringify(ctx)}`;
+        // the free service is a best-effort third party: skip it for a while after repeated failures
+        if (Date.now() < freeDownUntil) { await offline(t('ch_freeFallback')); return; }
+        const tools = { books: loadBooks, knowledge: loadKnowledge, analyse: (f: string) => analyseFen(f) };
         try {
-          const r = await chat(cfg, await http(), system, history, []);
-          if (!r.text.trim()) throw new AiError('server', 'empty');
-          save([...withQ, { role: 'coach', text: r.text.trim(), at: Date.now() }]);
+          let answer: string;
+          try {
+            answer = await runTurn({ cfg, http: await http(), system, history, tools, onStatus: setBusy, lang: L, maxRounds: 3 });
+          } catch (e) {
+            if (!(e instanceof AiError) || e.kind === 'network') throw e;
+            // no tool support: give the model the matching concepts up front instead
+            const ctx = matchConcepts(q, kx, 2).map((m) => kx.view(m.c));
+            const sys2 = system + `\n\nTOOLS ARE NOT AVAILABLE in this mode. Concepts from the knowledge network that match the question (your main source; name their source books):\n${JSON.stringify(ctx)}`;
+            const r = await chat(cfg, await http(), sys2, history, []);
+            answer = r.text.trim();
+          }
+          if (!answer) throw new AiError('server', 'empty');
+          freeFails = 0;
+          save([...withQ, { role: 'coach', text: answer, at: Date.now() }]);
         } catch {
+          if (++freeFails >= 2) { freeDownUntil = Date.now() + 10 * 60_000; freeFails = 0; }
           await offline(t('ch_freeFallback'));
         }
         return;

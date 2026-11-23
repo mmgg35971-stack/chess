@@ -111,12 +111,15 @@ ${bookList}
 - Books by or about ${name} in the network: ${p.network.coachRefs.map((r) => `${r.author}, "${r.title}" (${r.year})`).join('; ')}.` : ''}
 - Before you state what is best or winning in a concrete position, check it with analyse_position. If the check disagrees with you, trust Stockfish and say so.
 
-SHOWING THINGS (the app renders these tags; put each on its own line):
-- A position: [[board fen="FEN" arrows="e2e4 g1f3" caption="short caption"]]  (fen="start" for the initial position; arrows are from-to squares; add flip="b" to show it from Black's side). FENs must be legal; book passages give diagrams as [diagram FEN ...] which you can reuse (assume the side to move from the text).
-- A sequence of moves the student can step through: [[line fen="start" moves="e4 e5 Nf3 Nc6 Bb5" caption="Ruy Lopez"]]  (SAN only, no move numbers).
+SHOWING THINGS — teach visually and interactively. The app renders these tags (each on its own line). The more good diagrams, arrows and examples, the better: use 2–6 visuals in an explanation, each one with a purpose.
+- A position: [[board fen="FEN" arrows="g:e2e4 r:d8h4 b:g1f3" marks="g:d5 r:f7" caption="short caption"]]. Arrow/mark colours: g: = your plan (green), r: = threat/weakness (red), b: = alternative (blue), y: = key square (yellow). fen="start" for the initial position; flip="b" shows it from Black's side. FENs must be legal; book passages give diagrams as [diagram FEN ...] which you can reuse.
+- A sequence the student steps through, with a comment for each move: [[line fen="start" moves="e4 e5 Nf3 Nc6 Bb5" notes="takes the centre|answers in the centre|attacks e5|defends e5|pressure on the defender of e5" arrows="g:c2c3 g:d2d4" caption="Ruy Lopez"]] (SAN only; notes separated by |, one per move; arrows/marks show the plan in the final position).
+- An exercise the student solves by moving a piece (checked with Stockfish): [[quiz fen="FEN" goal="best" answer="Nf3" prompt="White to play: how do you exploit the pin?" hint="look at the pinned knight" explain="why the move works"]] — goal is best/win/draw/mate; answer is optional for win/draw/mate. Give a quiz whenever the idea can be practised in a position.
+- Be interactive: end with a question for the student, a quiz, or a choice of what to look at next.
 - Puzzles to practise the idea you discussed: [[puzzles theme="fork" n="3"]]. theme = a Lichess theme (${themes}) or an app category (${cats}). The app picks puzzles near the student's rating. Offer puzzles whenever practice would help.
+- Follow-up chips the student can tap: [[ask q="Explain the minority attack"]] (written in the student's language).
 - Links to the app's own lessons: [[topic id="..."]] for topic pages: ${topics}. [[lesson id="..."]] for guided lessons: ${lessons}. [[opening id="..."]] for the openings course: ${openings}.
-Use at most 3 boards/lines per reply. Do not use Markdown tables or headings; bold with **…** is fine.`;
+Use at most 6 boards/lines/quizzes per reply. Do not use Markdown tables or headings; bold with **…** and short bullet lists are fine.`;
 }
 
 const STATUS_AR: Record<string, string> = { search_knowledge: 'يراجع شبكة المعرفة…', search_books: 'يبحث في الكتب…', analyse_position: 'يتحقق بـ Stockfish…' };

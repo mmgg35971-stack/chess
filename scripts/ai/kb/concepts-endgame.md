@@ -43,7 +43,7 @@ pz: p_pawnEnd
 = Attacker: take the opposition, then go around (outflanking) to reach a key square.
 = Defender: keep the opposition; when the attacking king steps aside, step to the matching square.
 ! Pushing the pawn too early, which gives away the tempo needed for the opposition.
-ex: 8/4k3/8/4K3/4P3/8/8/8 w - - 0 1 | draw | White to move: Black has the opposition and holds (kings e5/e7, White must give way).
+ex: 8/4k3/8/4K3/4P3/8/8/8 w - - 0 1 | draw | White to move: Black has the opposition and holds (kings e5/e7, White must give way). | marks=g:d6 g:e6 g:f6
 ex: 8/4k3/8/4K3/4P3/8/8/8 b - - 0 1 | win w | Black to move must give way, so White's king reaches a key square (d6, e6 or f6).
 
 # key-squares | endgame | المربعات المفتاحية | Key squares
@@ -174,7 +174,7 @@ pz: p_rookEnd
 + The defending side's checks run out because the rook "bridge" shields the king.
 = Memorise the method: 1.Rd1+ (push the king further), then Rd4, Kc7/Kc8 and Rc4/Rd5 to block the checks.
 ! Leaving the king in front of the pawn forever, or bringing the rook to the wrong rank.
-ex: 1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1 | win w | 1.Rd1+ Ke7 2.Rd4! Ra1 3.Kc7 Rc1+ 4.Kb6 Rb1+ 5.Kc6 Rc1+ 6.Kb5 Rb1+ 7.Rb4 — the bridge.
+ex: 1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1 | win w | 1.Rd1+ Ke7 2.Rd4! Ra1 3.Kc7 Rc1+ 4.Kb6 Rb1+ 5.Kc6 Rc1+ 6.Kb5 Rb1+ 7.Rb4 — the bridge. | arrows=g:c1d1 b:d1d4 ; marks=b8
 
 # philidor | endgame | وضعية فيليدور | The Philidor position (third-rank defence)
 refs: dvoretsky-endgame-manual, de-la-villa-100, levenfish-smyslov-rook, minev-rook-endgames, silman-endgame-course
@@ -185,7 +185,7 @@ pz: p_rookEnd
 + The defending king stands on the queening square or next to it.
 = Defender: rook on the 6th rank; after the pawn moves to the 6th, ...Ra1 and check from behind.
 ! Passive rook on the back rank too early (often loses), or the king on the wrong side.
-ex: 4k3/7R/r7/3PK3/8/8/8/8 b - - 0 1 | draw | 1...Rb6 keeps the 6th rank: the white king cannot come forward; after d6, ...Rb1 and checks from behind.
+ex: 4k3/7R/r7/3PK3/8/8/8/8 b - - 0 1 | draw | 1...Rb6 keeps the 6th rank: the white king cannot come forward; after d6, ...Rb1 and checks from behind. | arrows=g:a6b6 ; marks=a6 b6 c6 d6 e6 f6 g6 h6
 
 # vancura | endgame | وضعية فانكورا | The Vančura position
 refs: dvoretsky-endgame-manual, de-la-villa-100, nunn-rook-endings

@@ -62,7 +62,7 @@ rel: pawn-chain, stonewall, opening-principles
 pz: opening
 > White sets up d4, Bf4, e3, c3, Nf3, Nd2/Nbd2, Bd3 and castles: a solid triangle (c3–d4–e3) with the bishop outside the chain. Plans: Ne5 with f4 (a Stonewall-like attack), Qc2/Bd3 battery against h7, or e3–e4 in the centre.
 + Against ...c5 keep c3 and answer ...Qb6 with Qb3 or Qc1; against ...Bd6 the bishop retreats to g3 to keep the long diagonal.
-line: d4 d5 Bf4 Nf6 e3 c5 c3 Nc6 Nd2 e6 Ngf3 Bd6 Bg3 O-O Bd3 | The typical London set-up.
+line: d4 d5 Bf4 Nf6 e3 c5 c3 Nc6 Nd2 e6 Ngf3 Bd6 Bg3 O-O Bd3 | The typical London set-up. | arrows=g:f3e5 g:f2f4 b:d3h7
 
 # kid-ideas | opening | أفكار الهندي الملكي | King's Indian ideas
 refs: smirin-kid-warfare, bologan-kid, gallagher-kid, bronstein-zurich, flores-structures
@@ -71,7 +71,7 @@ pz: kingsideAttack
 > Black lets White take the centre, then strikes with ...e5 (or ...c5). After d4–d5 the pawn chains point to opposite wings: Black attacks on the kingside with ...Nd7/...Ne8, ...f5–f4, ...g5–g4; White attacks on the queenside with c5, b4 and Nd3.
 + The race: Black must be fast; a well-timed piece sacrifice on the kingside often decides.
 + The "bad" g7-bishop becomes strong if the position opens (after ...f5 or ...c6/...exd4).
-line: d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O Nc6 d5 Ne7 Ne1 Nd7 Nd3 f5 | The Mar del Plata: the classic race.
+line: d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O Nc6 d5 Ne7 Ne1 Nd7 Nd3 f5 | The Mar del Plata: the classic race. | arrows=g:f5f4 g:g6g5 b:c4c5
 
 # sicilian-ideas | opening | أفكار الدفاع الصقلي | Sicilian Defence ideas
 refs: palliser-najdorf, experts-sicilian, fischer-60-games, kasparov-on-kasparov, flores-structures
@@ -80,7 +80,7 @@ pz: opening
 > 1...c5 creates an unbalanced fight: Black trades the c-pawn for White's d-pawn, gaining a central majority and the half-open c-file, while White gets a lead in development and attacking chances.
 + Black's counterplay: the c-file, ...b5 queenside expansion, the ...Rxc3 exchange sacrifice, the ...d5 break.
 + White's plans: kingside attack (f4–f5, g4–g5, the English Attack) and the d5 outpost.
-line: e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 | The Najdorf (Fischer's and Kasparov's weapon).
+line: e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 | The Najdorf (Fischer's and Kasparov's weapon). | arrows=g:b7b5 g:e7e5 ; marks=c8
 line: e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3 O-O Qd2 Nc6 Bc4 Bd7 O-O-O | The Dragon vs the Yugoslav Attack: opposite-side castling race.
 
 # french-ideas | opening | أفكار الدفاع الفرنسي | French Defence ideas
@@ -88,21 +88,21 @@ refs: watson-play-french, moskalenko-flexible-french, nimzowitsch-my-system, neg
 rel: pawn-chain, good-bad-bishop, pawn-breaks
 pz: opening
 > After 1.e4 e6 2.d4 d5 Black challenges the centre. In closed lines (e4–e5) Black attacks the chain with ...c5 and ...f6; the light-squared bishop on c8 is the "problem piece" and is often exchanged (...b6/...Ba6) or activated.
-line: e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6 | The Advance Variation: Black attacks the base d4.
+line: e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6 | The Advance Variation: Black attacks the base d4. | arrows=g:c5d4 g:b6d4 g:c6d4 ; marks=d4
 
 # caro-ideas | opening | أفكار كاروكان | Caro-Kann ideas
 refs: schandorff-caro, lakdawala-caro, negi-french-caro
 rel: carlsbad, good-bad-bishop
 pz: opening
 > 1...c6 prepares ...d5 without blocking the c8-bishop: Black develops it to f5 or g4 before ...e6 and gets a solid structure. White plays for space (Advance), a lead in development (Panov) or the classical h4–h5 to harass the bishop.
-line: e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 | The Classical Variation.
+line: e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 | The Classical Variation. | marks=r:h5 g:h7 g:f5
 
 # ruy-ideas | opening | أفكار الإسبانية (روي لوبيز) | Ruy Lopez ideas
 refs: marin-spanish-black, fischer-60-games, fine-ideas-openings, mednis-opening-endgame
 rel: centre, opening-traps
 pz: opening
 > 3.Bb5 pressures the knight that defends e5. White's long-term plan: c3 and d4 to build a centre, Nbd2–f1–g3 manoeuvre, and slow pressure. Black: ...a6, ...b5, ...d6 and the fight for d4/e5; or the solid Berlin endgame.
-line: e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 | The Closed Ruy Lopez.
+line: e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 | The Closed Ruy Lopez. | arrows=g:d2d4 g:b1d2 ; marks=e5
 line: e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6 dxe5 Nf5 Qxd8+ Kxd8 | The Berlin endgame: Black gives up castling for the bishop pair and a solid position.
 
 # italian-ideas | opening | أفكار الإيطالية | Italian Game ideas
@@ -110,7 +110,7 @@ refs: marin-open-games, bologan-open-games, fine-ideas-openings, davies-play-e5
 rel: opening-principles, attack-castled-king
 pz: opening
 > 3.Bc4 aims at f7. The modern slow Italian (c3, d3, a4, Re1, Nbd2–f1–g3) keeps the tension and prepares d3–d4; Black mirrors with ...d6, ...a6, ...Ba7 and ...h6.
-line: e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O a6 a4 O-O | The slow Italian (Giuoco Pianissimo).
+line: e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O a6 a4 O-O | The slow Italian (Giuoco Pianissimo). | arrows=g:d3d4 g:b1d2 ; marks=f7
 
 # scotch-ideas | opening | أفكار الاسكتلندية | Scotch Game ideas
 refs: emms-scotch, kasparov-on-kasparov, marin-open-games
@@ -152,21 +152,21 @@ refs: emms-nimzo, nimzowitsch-my-system, flores-structures, watson-mastering-ope
 rel: doubled-pawns, bishop-pair, blockade, hypermodern
 pz: opening
 > 3...Bb4 pins the c3-knight to control e4. Black is ready to give the bishop for the knight to double White's c-pawns, then blockade and attack them (the c4 pawn especially). White gets the bishop pair and the centre.
-line: d4 Nf6 c4 e6 Nc3 Bb4 a3 Bxc3+ bxc3 c5 | The Sämisch: doubled c-pawns vs the bishop pair.
+line: d4 Nf6 c4 e6 Nc3 Bb4 a3 Bxc3+ bxc3 c5 | The Sämisch: doubled c-pawns vs the bishop pair. | marks=r:c3 r:c4 ; arrows=g:b7b6 g:c8a6
 
 # grunfeld-ideas | opening | أفكار غرونفلد | Grünfeld ideas
 refs: rowson-grunfeld, kasparov-on-kasparov, fischer-60-games
 rel: hypermodern, centre, fianchetto
 pz: opening
 > Black allows White a big pawn centre (e4+d4) and then attacks it with ...Bg7, ...c5, ...Nc6, ...Bg4 and ...Qa5. If the centre advances, Black gets squares; if it stays, it is under constant pressure.
-line: d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Nf3 c5 | The Exchange Variation.
+line: d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Nf3 c5 | The Exchange Variation. | arrows=g:g7d4 g:c5d4 ; marks=d4 e4
 
 # catalan-ideas | opening | أفكار الكاتالاني | Catalan ideas
 refs: avrukh-catalan, kornev-white-d4, watson-mastering-openings
 rel: fianchetto, gambits
 pz: opening
 > White fianchettoes the bishop on g2 to pressure the long diagonal and b7. If Black takes on c4, White often regains the pawn with Qc2/Qa4 and keeps long-term queenside pressure.
-line: d4 Nf6 c4 e6 g3 d5 Bg2 Be7 Nf3 O-O O-O dxc4 Qc2 a6 Qxc4 b5 Qc2 Bb7 | The Open Catalan.
+line: d4 Nf6 c4 e6 g3 d5 Bg2 Be7 Nf3 O-O O-O dxc4 Qc2 a6 Qxc4 b5 Qc2 Bb7 | The Open Catalan. | arrows=g:g2b7 ; marks=b7
 
 # english-ideas | opening | أفكار الإنجليزية | English Opening ideas
 refs: marin-english, watson-mastering-openings, fco-sterren

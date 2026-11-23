@@ -121,13 +121,37 @@ function sourcesLine(c: KConcept, kx: KnowledgeIndex, L: Lang) {
   return refs.length ? (L === 'ar' ? '📚 **من أين جاءت الفكرة:**' : '📚 **Where the idea comes from:**') + '\n' + refs.join('\n') : '';
 }
 
+const q = (s: string) => s.replace(/"/g, "'");
+/** An example as a step-through line, or — when it has a checked claim — as an interactive exercise. */
 function exampleTag(c: KConcept, i: number, L: Lang): string {
   const e = c.examples[i];
   if (!e) return '';
-  const note = (L === 'ar' ? c.ar?.notes[i] : e.note) ?? e.note;
-  const cap = note.replace(/"/g, '\'');
-  return e.moves ? `[[line fen="start" moves="${e.moves}" caption="${cap}"]]` : `[[board fen="${e.fen}" caption="${cap}"]]`;
+  const note = q((L === 'ar' ? c.ar?.notes[i] : e.note) ?? e.note);
+  const vis = `${e.arrows ? ` arrows="${e.arrows}"` : ''}${e.marks ? ` marks="${e.marks}"` : ''}`;
+  if (e.moves) return `[[line fen="start" moves="${e.moves}" caption="${note}"${vis}]]`;
+  if (e.claim && e.fen) {
+    const [kind, arg] = e.claim.split(/\s+/);
+    const fen = e.fen;
+    const stm = fen.split(' ')[1];
+    // a "draw" exercise only makes sense for the defending (weaker) side
+    const mat = (side: 'w' | 'b') => [...fen.split(' ')[0]].reduce((a, ch) => a + ((side === 'w' ? ch === ch.toUpperCase() : ch === ch.toLowerCase()) ? ({ p: 1, n: 3, b: 3, r: 5, q: 9 } as Record<string, number>)[ch.toLowerCase()] ?? 0 : 0), 0);
+    const weaker = mat(stm as 'w' | 'b') < mat(stm === 'w' ? 'b' : 'w');
+    const goal = kind === 'mate' ? 'mate' : kind === 'best' ? 'best' : kind === 'draw' && weaker ? 'draw' : kind === 'win' && arg === stm ? 'win' : '';
+    if (goal) {
+      const side = stm === 'w' ? (L === 'ar' ? 'الأبيض' : 'White') : (L === 'ar' ? 'الأسود' : 'Black');
+      const prompt = L === 'ar'
+        ? ({ mate: `${side} يلعب ويعطي كش مات — جرّب!`, best: `${side} يلعب — ما أفضل نقلة؟`, win: `${side} يلعب ويفوز — ما النقلة الصحيحة؟`, draw: `${side} يلعب ويتعادل — كيف تدافع؟` } as Record<string, string>)[goal]
+        : ({ mate: `${side} to play and mate — try it!`, best: `${side} to play — what is the best move?`, win: `${side} to play and win — find the move`, draw: `${side} to play and draw — how do you defend?` } as Record<string, string>)[goal];
+      const answer = kind === 'best' ? ` answer="${arg}"` : '';
+      return `[[quiz fen="${e.fen}" goal="${goal}"${answer} prompt="${prompt}" explain="${note}"]]`;
+    }
+  }
+  return `[[board fen="${e.fen}" caption="${note}"${vis}]]`;
 }
+
+/** Puzzle themes that really match a concept (generic categories would show unrelated puzzles). */
+const GENERIC_PZ = new Set(['opening', 'c_middlegame', 'c_random', 'c_tactics', 'c_best']);
+const usefulPuzzles = (c: KConcept) => !!c.pz && !GENERIC_PZ.has(c.pz);
 
 function followUps(c: KConcept, kx: KnowledgeIndex, L: Lang) {
   const rel = c.rel.map((r) => kx.byId.get(r)).filter(Boolean).slice(0, 3) as KConcept[];
@@ -156,10 +180,14 @@ function explain(c: KConcept, inp: LocalInput, wantPuzzles: boolean): string {
   }
   const love = LOVES[inp.coach.id];
   if (love?.ids.includes(c.id)) out.push(L === 'ar' ? love.ar : love.en);
-  if (c.examples.length) out.push((L === 'ar' ? 'شوف هذا المثال:' : 'Look at this example:') + '\n' + exampleTag(c, 0, L));
+  if (c.examples.length) {
+    const n = Math.min(c.examples.length, 4);
+    const head = L === 'ar' ? (n > 1 ? `شوف هذه الأمثلة (${n}) — تنقّل بين النقلات، والأسهم توضّح الخطة:` : 'شوف هذا المثال:') : (n > 1 ? `Look at these ${n} examples — step through the moves; the arrows show the plan:` : 'Look at this example:');
+    out.push(head + '\n' + c.examples.slice(0, n).map((_, i) => exampleTag(c, i, L)).join('\n'));
+  }
   const src = sourcesLine(c, inp.kx, L);
   if (src) out.push(src);
-  if (c.pz) out.push((wantPuzzles ? (L === 'ar' ? 'هذه ألغاز للتمرين على الفكرة نفسها:' : 'Here are puzzles on exactly this idea:') : (L === 'ar' ? 'جرّب هذه الألغاز لتثبيت الفكرة 👇' : 'Try these puzzles to lock the idea in 👇')) + `\n[[puzzles theme="${c.pz}" n="${wantPuzzles ? 5 : 3}"]]`);
+  if (usefulPuzzles(c) || (wantPuzzles && c.pz)) out.push((wantPuzzles ? (L === 'ar' ? 'هذه ألغاز للتمرين على الفكرة نفسها:' : 'Here are puzzles on exactly this idea:') : (L === 'ar' ? 'جرّب هذه الألغاز لتثبيت الفكرة 👇' : 'Try these puzzles to lock the idea in 👇')) + `\n[[puzzles theme="${c.pz}" n="${wantPuzzles ? 5 : 3}"]]`);
   if (LESSON_OF[c.id]) out.push(`[[lesson id="${LESSON_OF[c.id]}"]]`);
   if (OPENING_OF[c.id]) out.push(`[[opening id="${OPENING_OF[c.id]}"]]`);
   const fu = followUps(c, inp.kx, L);
@@ -177,14 +205,18 @@ function more(c: KConcept, inp: LocalInput): string {
   if (ideas.length) out.push(ideas.map((x) => '- ' + x).join('\n'));
   if (how.length) out.push((L === 'ar' ? '**وأيضًا عمليًا:**' : '**Also in practice:**') + '\n' + how.map((x) => '- ' + x).join('\n'));
   if (mistakes.length) out.push((L === 'ar' ? '⚠️ **وانتبه أيضًا:** ' : '⚠️ **Also watch out:** ') + mistakes.join(' '));
-  for (let i = 1; i < Math.min(c.examples.length, 3); i++) out.push(exampleTag(c, i, L));
+  for (let i = 4; i < c.examples.length; i++) out.push(exampleTag(c, i, L));
+  for (const r of c.rel.slice(0, 2)) {
+    const rc = inp.kx.byId.get(r);
+    if (rc?.examples.length) out.push((L === 'ar' ? `ومثال من موضوع قريب (**${rc.title.ar}**):` : `And an example from a related topic (**${rc.title.en}**):`) + '\n' + exampleTag(rc, 0, L));
+  }
   const refs = c.refs.map((r) => inp.kx.refById.get(r)).filter(Boolean).slice(0, 3);
   for (const r of refs) {
     const idea = r!.ideas[0];
     if (idea) out.push(`📖 **${r!.title}** (${r!.author}, ${r!.year}) — ${L === 'ar' ? 'من أفكاره (بالإنجليزية كما في فهرس المراجع):' : 'one of its ideas:'} ${idea}`);
   }
   if (out.length === 1) out.push(L === 'ar' ? 'هذا كل ما في الشبكة عن هذا المفهوم حاليًا. جرّب الألغاز أو موضوعًا قريبًا:' : 'That is everything the network has on this concept. Try the puzzles or a related topic:');
-  if (c.pz) out.push(`[[puzzles theme="${c.pz}" n="3"]]`);
+  if (usefulPuzzles(c)) out.push(`[[puzzles theme="${c.pz}" n="3"]]`);
   const fu = followUps(c, inp.kx, L);
   if (fu) out.push(fu);
   return out.join('\n\n');

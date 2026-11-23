@@ -23,7 +23,8 @@ export const PROVIDERS: Record<ProviderId, { label: string; baseUrl: string; mod
   openai: { label: 'OpenAI-compatible', baseUrl: 'https://api.openai.com/v1/', model: '', keyUrl: '' },
 };
 
-export const DEFAULT_AI: AiConfig = { provider: 'local', apiKey: '', model: '', baseUrl: '' };
+// default: the free online model when reachable, the offline coach otherwise — no key in either case
+export const DEFAULT_AI: AiConfig = { provider: 'free', apiKey: '', model: 'openai', baseUrl: '' };
 /** Providers that work without any API key. */
 export const needsKey = (p: ProviderId) => p === 'gemini' || p === 'anthropic';
 
@@ -90,6 +91,7 @@ async function openAiChat(cfg: AiConfig, http: Http, system: string, msgs: Msg[]
     messages: toOpenAi(system, msgs),
     ...(tools.length ? { tools: tools.map((t) => ({ type: 'function', function: t })) } : {}),
     temperature: 0.7,
+    ...(cfg.provider === 'free' ? { referrer: 'chess-grandmaster-academy' } : {}),
   }) as { choices?: { message?: { content?: string | null; tool_calls?: { id?: string; function?: { name?: string; arguments?: string } }[] } }[] };
   const m = data?.choices?.[0]?.message;
   if (!m) throw new AiError('server', 'empty response');
@@ -169,7 +171,9 @@ export async function defaultHttp(): Promise<Http> {
     };
   }
   return async (url, init) => {
-    const r = await fetch(url, { method: init.method, headers: init.headers, body: init.body === undefined ? undefined : JSON.stringify(init.body) });
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 60000);
+    const r = await fetch(url, { method: init.method, headers: init.headers, body: init.body === undefined ? undefined : JSON.stringify(init.body), signal: ctl.signal }).finally(() => clearTimeout(timer));
     const txt = await r.text();
     let data: unknown = txt;
     try { data = JSON.parse(txt); } catch { /* not json */ }
