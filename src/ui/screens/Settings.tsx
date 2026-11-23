@@ -121,7 +121,7 @@ export function Settings() {
           <Segmented value={settings.lang} onChange={(v) => setSettings({ lang: v as S['lang'] })} options={[['ar', 'العربية'], ['en', 'English']]} />
         </div>
         <div className="field"><span>{t('theme')}</span>
-          <Segmented value={settings.theme} onChange={(v) => setSettings({ theme: v as S['theme'] })} options={[['dark', t('dark')], ['light', t('light')]]} />
+          <Segmented value={settings.theme} onChange={(v) => setSettings({ theme: v as S['theme'] })} options={[['dark', t('dark')], ['light', t('light')], ['sepia', t('sepia')]]} />
         </div>
       </section>
 

@@ -50,7 +50,7 @@ export function annotatedPgn(game: SavedGame, evals: MoveEval[], lang: 'ar' | 'e
   return pgn;
 }
 
-export function Analysis({ gameId }: { gameId: number }) {
+export function Analysis({ gameId, autostart }: { gameId: number; autostart?: boolean }) {
   const { t, settings, go, profile } = useApp();
   const L = settings.lang;
   const [game, setGame] = useState<SavedGame | null>(null);
@@ -81,7 +81,7 @@ export function Analysis({ gameId }: { gameId: number }) {
   }, [game]);
 
   useEffect(() => {
-    if (game && settings.autoAnalyze && analysis?.kind !== 'full' && !job) start();
+    if (game && (settings.autoAnalyze || autostart) && analysis?.kind !== 'full' && !job) start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, analysis]);
 

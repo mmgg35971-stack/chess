@@ -76,16 +76,18 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
 export const setSetting = (key: string, value: unknown) => db().kv.put({ key, value });
 
 /** Import games from PGN text. Imported games never count toward the user's stats. */
-export async function importGames(text: string) {
+export async function importGames(text: string, opts: { userColor?: 'w' | 'b'; only?: number } = {}) {
   const report = importPgn(text);
+  if (opts.only !== undefined) report.games = report.games.slice(opts.only, opts.only + 1);
   const now = Date.now();
+  const ids: number[] = [];
   await db().transaction('rw', db().games, db().activity, async () => {
     for (const g of report.games) {
-      await db().games.add({
+      ids.push(await db().games.add({
         pgn: g.pgn,
         white: g.headers.White ?? '?',
         black: g.headers.Black ?? '?',
-        userColor: 'w',
+        userColor: opts.userColor ?? 'w',
         opponent: { kind: 'import' },
         mode: 'training',
         result: g.result,
@@ -94,12 +96,12 @@ export async function importGames(text: string) {
         endedAt: now,
         durationMs: 0,
         imported: true,
-      });
+      }) as number);
     }
     if (report.games.length)
       await db().activity.add({ type: 'import', at: now, durationMs: 0, summary: `PGN ×${report.games.length}` });
   });
-  return report;
+  return { ...report, ids };
 }
 
 export interface Backup {

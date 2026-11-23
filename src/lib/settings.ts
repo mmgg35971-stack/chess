@@ -1,5 +1,5 @@
 export type Lang = 'ar' | 'en';
-export type Theme = 'dark' | 'light';
+export type Theme = 'dark' | 'light' | 'sepia';
 
 export interface BoardTheme {
   id: string;

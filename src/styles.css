@@ -1,30 +1,70 @@
 :root {
-  --bg: #14161c;
-  --bg2: #1c1f27;
-  --card: #222631;
-  --line: #2f3442;
-  --text: #eef0f4;
-  --muted: #9aa1b1;
-  --accent: #d9a441;
-  --accent-ink: #1b1406;
-  --danger: #d0564b;
-  --win: #3fa36b;
-  --loss: #d0564b;
-  --draw: #8a90a0;
-  --radius: 14px;
+  /* calm dark theme: deep slate with a soft sage accent (less glare than black + gold) */
+  --bg: #121a20;
+  --bg2: #18232b;
+  --card: #1c2932;
+  --card2: #213039;
+  --line: rgba(160, 190, 205, 0.14);
+  --text: #e3eaee;
+  --muted: #92a3ae;
+  --accent: #6cc3a6;
+  --accent2: #e8c27a;
+  --accent-ink: #0b1c16;
+  --danger: #e07a6e;
+  --win: #5cb98a;
+  --loss: #e07a6e;
+  --draw: #8d9aa5;
+  --radius: 18px;
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  --sec: var(--accent);
   color-scheme: dark;
 }
 [data-theme='light'] {
-  --bg: #f4f2ee;
-  --bg2: #ebe7e0;
-  --card: #ffffff;
-  --line: #ddd7cc;
-  --text: #1d1f24;
-  --muted: #6b7080;
-  --accent: #b8801e;
-  --accent-ink: #fff;
+  --bg: #eef2f1;
+  --bg2: #e3eae8;
+  --card: #fbfdfc;
+  --card2: #f2f6f5;
+  --line: rgba(40, 70, 70, 0.12);
+  --text: #1f2b30;
+  --muted: #5f7179;
+  --accent: #2f8f76;
+  --accent2: #b9832a;
+  --accent-ink: #ffffff;
+  --danger: #c4554a;
+  --win: #2f9468;
+  --loss: #c4554a;
+  --shadow: 0 6px 18px rgba(30, 60, 60, 0.08);
   color-scheme: light;
 }
+/* warm paper for long reading sessions */
+[data-theme='sepia'] {
+  --bg: #f3ecdf;
+  --bg2: #eadfcd;
+  --card: #fbf6ec;
+  --card2: #f3eadb;
+  --line: rgba(90, 60, 20, 0.14);
+  --text: #3a2f25;
+  --muted: #7a6a58;
+  --accent: #3f8a72;
+  --accent2: #b07a2a;
+  --accent-ink: #fffaf0;
+  --danger: #b5523f;
+  --win: #3f8a5a;
+  --loss: #b5523f;
+  --shadow: 0 6px 18px rgba(90, 60, 20, 0.08);
+  color-scheme: light;
+}
+/* each section has its own soft colour (used for headings, highlights and the active tab) */
+[data-section='home'] { --sec: #6cc3a6; }
+[data-section='coaches'] { --sec: #a99cf0; }
+[data-section='puzzles'] { --sec: #e8c27a; }
+[data-section='openings'] { --sec: #7fb2ec; }
+[data-section='settings'] { --sec: #9fb0bb; }
+[data-theme='light'] [data-section='coaches'], [data-theme='sepia'] [data-section='coaches'] { --sec: #6d5bd0; }
+[data-theme='light'] [data-section='puzzles'], [data-theme='sepia'] [data-section='puzzles'] { --sec: #b9832a; }
+[data-theme='light'] [data-section='openings'], [data-theme='sepia'] [data-section='openings'] { --sec: #3b78c2; }
+[data-theme='light'] [data-section='home'], [data-theme='sepia'] [data-section='home'] { --sec: #2f8f76; }
+[data-theme='light'] [data-section='settings'], [data-theme='sepia'] [data-section='settings'] { --sec: #5f7179; }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body {
@@ -250,3 +290,67 @@ input[type='checkbox'] { width: 22px; height: 22px; min-height: 0; accent-color:
 .ch-quiz-head { font-size: 14px; }
 .ch-quiz-ok { color: #3c9a5f; font-weight: 600; }
 .ch-quiz-bad { color: #d05050; font-weight: 600; }
+.pgn-input { width: 100%; box-sizing: border-box; font: 13px/1.4 ui-monospace, monospace; padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg2); color: inherit; resize: vertical; margin: 8px 0; }
+.apg-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
+.apg-board { max-width: min(100%, 320px); margin: 10px auto; }
+.btn.big { width: 100%; padding: 12px; font-size: 16px; }
+.bad { color: #d05050; }
+
+/* ================= visual refresh: softer surfaces, rounder shapes, calmer contrast ================= */
+body { line-height: 1.55; letter-spacing: 0.1px; background: radial-gradient(1200px 600px at 50% -200px, color-mix(in srgb, var(--sec) 10%, transparent), transparent 70%) fixed, var(--bg); }
+h1 { font-size: 23px; font-weight: 800; }
+h2 { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+h2::before { content: ''; width: 4px; height: 16px; border-radius: 4px; background: var(--sec); flex: none; }
+.card { background: linear-gradient(180deg, var(--card), var(--card2, var(--card))); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+.btn { border-radius: 14px; min-height: 46px; padding: 0 16px; background: var(--bg2); border: 1px solid var(--line); transition: transform 0.08s ease, background 0.2s ease, border-color 0.2s ease; }
+.btn:active { transform: scale(0.97); }
+.btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--sec) 45%, var(--line)); }
+.btn.primary { background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 75%, #2a6f86)); color: var(--accent-ink); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent); }
+.btn.small { min-height: 36px; padding: 0 12px; border-radius: 11px; font-size: 14px; }
+input, select, textarea { border-radius: 12px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--sec) 55%, transparent); outline-offset: 1px; }
+.seg { border-radius: 14px; padding: 4px; }
+.seg button { border-radius: 10px; }
+.seg button.on { background: var(--sec); color: var(--accent-ink); }
+.pill { border-radius: 99px; padding: 3px 10px; background: color-mix(in srgb, var(--sec) 14%, var(--bg2)); border-color: color-mix(in srgb, var(--sec) 25%, var(--line)); }
+.stat { border-radius: 16px; background: linear-gradient(180deg, var(--card), var(--card2, var(--card))); box-shadow: var(--shadow); padding: 12px 6px; }
+.stat-v { color: var(--text); font-size: 21px; }
+.stat:first-child .stat-v { color: var(--sec); }
+.profile-card { background: linear-gradient(135deg, color-mix(in srgb, var(--sec) 18%, var(--card)), var(--card)); }
+.list li { border-bottom: 1px solid var(--line); border-radius: 0; }
+.list li:active { background: color-mix(in srgb, var(--sec) 8%, transparent); }
+/* tab bar: floating, rounded, with the active section highlighted */
+.tabbar { inset: auto 10px calc(env(safe-area-inset-bottom) + 8px) 10px; border-radius: 22px; border: 1px solid var(--line); background: color-mix(in srgb, var(--bg2) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28); padding: 4px; padding-bottom: 4px; max-width: 700px; margin: 0 auto; }
+.tabbar button { border-radius: 16px; padding: 7px 0 5px; transition: background 0.2s ease, color 0.2s ease; }
+.tabbar button.on { color: var(--sec); background: color-mix(in srgb, var(--sec) 15%, transparent); font-weight: 700; }
+.main { padding-bottom: calc(env(safe-area-inset-bottom) + 96px); }
+.dock { bottom: calc(env(safe-area-inset-bottom) + 76px); }
+.ch-input { bottom: calc(env(safe-area-inset-bottom) + 76px); border-radius: 18px; margin: 0 10px; border: 1px solid var(--line); background: color-mix(in srgb, var(--bg2) 92%, transparent); backdrop-filter: blur(10px); }
+/* boards: rounded frame with a soft shadow */
+.board { border-radius: 10px; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25); }
+.player-bar { border-radius: 14px; background: linear-gradient(180deg, var(--card), var(--card2, var(--card))); }
+.player-bar.active { border-color: var(--sec); }
+/* puzzle category tiles and academy stages: colour bar for the section */
+.pz-cat, .ac-stage { border-radius: 14px; background: var(--card2, var(--bg2)); border: 1px solid var(--line); border-inline-start: 4px solid color-mix(in srgb, var(--sec) 70%, transparent); transition: transform 0.08s ease; }
+.pz-cat:active, .ac-stage:active { transform: scale(0.98); }
+.pz-cat .small, .pz-cat .tiny { color: var(--muted); }
+.pz-rating .big { color: var(--sec); }
+.ac-bar { height: 8px; border-radius: 6px; }
+.ac-bar span { background: linear-gradient(90deg, var(--sec), color-mix(in srgb, var(--sec) 60%, #ffffff)); border-radius: 6px; }
+.ac-stage.done { border-color: var(--win); border-inline-start-color: var(--win); }
+.ac-stage.cur { border-color: var(--sec); }
+.mv.cur, .ch-mv.on { background: var(--sec); color: var(--accent-ink); }
+.coach-card { transition: transform 0.08s ease; }
+.coach-card:active { transform: scale(0.99); }
+.ch-msg.me { background: linear-gradient(135deg, var(--sec), color-mix(in srgb, var(--sec) 70%, #2a6f86)); color: var(--accent-ink); }
+.ch-msg.coach { background: linear-gradient(180deg, var(--card), var(--card2, var(--card))); box-shadow: var(--shadow); }
+.ch-chip, .ch-link, .ch-pz { border-radius: 14px; background: var(--card2, var(--bg2)); }
+.ch-info-toggle { color: var(--sec); }
+.toast { border-radius: 16px; box-shadow: var(--shadow); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* home: action buttons as a grid, rating tiles wider so their text does not wrap */
+.home-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.home-actions .btn.primary { grid-column: 1 / -1; min-height: 52px; font-size: 17px; }
+.home-actions .btn { width: 100%; }
+.stats-grid .stat:nth-child(n+5) { grid-column: span 2; }

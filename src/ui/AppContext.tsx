@@ -22,7 +22,8 @@ export type Route =
   | { name: 'coachGame'; id: string; resume?: boolean }
   | { name: 'coachChat'; id: string }
   | { name: 'aiSettings' }
-  | { name: 'analysis'; gameId: number };
+  | { name: 'analysis'; gameId: number; autostart?: boolean }
+  | { name: 'analyzePgn' };
 
 export interface Ctx {
   t: T;

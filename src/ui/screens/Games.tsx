@@ -10,7 +10,7 @@ import { Board } from '../board/Board';
 import { MoveList } from './Play';
 
 export function Games({ openId }: { openId?: number }) {
-  const { t, settings, dataVersion, bumpData, toast } = useApp();
+  const { t, settings, dataVersion, bumpData, toast, go } = useApp();
   const [games, setGames] = useState<SavedGame[]>([]);
   const [open, setOpen] = useState<SavedGame | null>(null);
 
@@ -38,6 +38,7 @@ export function Games({ openId }: { openId?: number }) {
     <div className="screen">
       <h1>{t('history')}</h1>
       <div className="row gap wrap">
+        <button className="btn primary" onClick={() => go({ name: 'analyzePgn' })}>{t('apg_open')}</button>
         <button className="btn" onClick={doImport} data-testid="import-pgn">{t('importPgn')}</button>
         <button className="btn" onClick={exportAll} disabled={!games.length} data-testid="export-all">{t('exportAll')}</button>
       </div>

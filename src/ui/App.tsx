@@ -15,6 +15,7 @@ import { PuzzlesHome, PuzzleSolve, PuzzleStatsScreen } from './puzzles/Puzzles';
 import { Coaches, CoachDetail } from './coach/CoachScreens';
 import { CoachGame } from './coach/CoachGame';
 import { CoachChat, AiSettings } from './coach/CoachChat';
+import { AnalyzePgn } from './analysis/AnalyzePgn';
 import { Analysis } from './analysis/Analysis';
 
 const NAV: { route: Route['name']; key: TKey; icon: IconName }[] = [
@@ -102,16 +103,17 @@ export function App() {
       case 'coachGame': return <CoachGame key={navKey} id={route.id} resume={route.resume} />;
       case 'coachChat': return <CoachChat key={route.id} id={route.id} />;
       case 'aiSettings': return <AiSettings />;
-      case 'analysis': return <Analysis key={route.gameId} gameId={route.gameId} />;
+      case 'analysis': return <Analysis key={route.gameId} gameId={route.gameId} autostart={route.autostart} />;
+      case 'analyzePgn': return <AnalyzePgn />;
     }
   })();
 
-  const activeNav = ['play', 'coach', 'coachGame', 'coachChat'].includes(route.name) ? 'coaches' : ['games', 'analysis'].includes(route.name) ? 'home' : ['puzzle', 'puzzleStats'].includes(route.name) ? 'puzzles' : ['opening', 'openingStage', 'openingQuiz', 'topic', 'lesson'].includes(route.name) ? 'openings' : route.name === 'aiSettings' ? 'settings' : route.name;
+  const activeNav = ['play', 'coach', 'coachGame', 'coachChat'].includes(route.name) ? 'coaches' : ['games', 'analysis', 'analyzePgn'].includes(route.name) ? 'home' : ['puzzle', 'puzzleStats'].includes(route.name) ? 'puzzles' : ['opening', 'openingStage', 'openingQuiz', 'topic', 'lesson'].includes(route.name) ? 'openings' : route.name === 'aiSettings' ? 'settings' : route.name;
 
   return (
     <AppCtx.Provider value={ctx}>
-      <main className="main">{screen}</main>
-      <nav className="tabbar">
+      <main className="main" data-section={activeNav}>{screen}</main>
+      <nav className="tabbar" data-section={activeNav}>
         {NAV.map((n) => (
           <button key={n.route} className={activeNav === n.route ? 'on' : ''} onClick={() => ctx.go({ name: n.route } as Route)} data-testid={'nav-' + n.route}>
             <Icon name={n.icon} />

@@ -49,7 +49,7 @@ export function Home() {
         </div>
       )}
 
-      <div className="row gap wrap">
+      <div className="home-actions">
         {hasSession && (
           <button className="btn primary" onClick={() => go({ name: 'play', resume: true })} data-testid="resume">
             <Icon name="play" /> {t('resume')}
@@ -57,6 +57,9 @@ export function Home() {
         )}
         <button className={'btn' + (hasSession ? '' : ' primary')} onClick={() => go({ name: 'play' })} data-testid="play-engine">
           <Icon name="play" /> {t('playEngine')}
+        </button>
+        <button className="btn" onClick={() => go({ name: 'analyzePgn' })} data-testid="open-analyze-pgn">
+          <Icon name="analysis" /> {t('apg_open')}
         </button>
         <button className="btn" onClick={() => go({ name: 'games' })} data-testid="open-history">
           <Icon name="analysis" /> {t('history')}

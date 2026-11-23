@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build && node scripts/check-no-network.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "node scripts/e2e-offline.mjs && node scripts/e2e-coach.mjs && node scripts/e2e-puzzles.mjs && node scripts/e2e-academy.mjs && node scripts/e2e-chat.mjs"
+    "test:e2e": "node scripts/e2e-offline.mjs && node scripts/e2e-coach.mjs && node scripts/e2e-puzzles.mjs && node scripts/e2e-academy.mjs && node scripts/e2e-chat.mjs && node scripts/e2e-pgn.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",
