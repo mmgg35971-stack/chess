@@ -15,6 +15,8 @@ def rank_at(r):
 PLAN = [(0, 600, 110000), (600, 800, 150000), (800, 1000, 190000), (1000, 1200, 210000), (1200, 1400, 210000),
         (1400, 1600, 210000), (1600, 1800, 210000), (1800, 2000, 200000), (2000, 2200, 190000), (2200, 2400, 160000),
         (2400, 2600, 100000), (2600, 2800, 60000)]
+# a few more rows from the chunks already chosen (the 2600+ band runs short, and some ids are also in the 10k file)
+EXTRA = {1000: 1000, 1200: 1000, 1400: 1000, 1600: 1000, 1800: 1000, 2000: 1000}
 # chunks the first selection used (same rule as select-lichess-1m.py)
 PLAN1 = [(0, 600, 60000), (600, 800, 75000), (800, 1000, 90000), (1000, 1200, 100000), (1200, 1400, 100000), (1400, 1600, 100000),
          (1600, 1800, 100000), (1800, 2000, 100000), (2000, 2200, 90000), (2200, 2400, 80000), (2400, 2600, 70000),
@@ -58,6 +60,7 @@ taken = []
 for (a, b, q), cs in plan_chunks:
     band = [rows[c * CH + k] for c in cs for k in range(CH) if c * CH + k in rows]
     band = [r for r in band if a <= r[3] < b and r[0] not in have and len(r[2].split(' ')) // 2 <= 5]
+    q += EXTRA.get(a, 0)
     step = len(band) / q if len(band) > q else 1
     got = [band[int(i * step)] for i in range(min(q, len(band)))]
     print(f'{a}-{b}: {len(got)} of {q} (from {len(cs)} chunks)', file=sys.stderr)

@@ -1,4 +1,4 @@
-// Builds the offline puzzle library (≈1 million puzzles) into public/data/puzzles/:
+// Builds the offline puzzle library (≈3 million puzzles) into public/data/puzzles/:
 //   index.json   meta: n, chunk size, category ids and counts per rating band
 //   ratings.pz   Uint16 rating of every row (rows sorted by rating)
 //   cats.pz      one bitset per category (in index.json order), ceil(n/8) bytes each
@@ -8,6 +8,7 @@
 //
 // Sources (all CC0 except the generated ones, which are part of this project):
 //   lichess-puzzles-10000.csv      10,000 Lichess puzzles with full columns (RatingDeviation, NbPlays…)
+//   lichess-puzzles-2m-1/2.csv.gz  2,000,000 more Lichess puzzles from the same database (select-lichess-2m.py)
 //   lichess-puzzles-1m.csv.gz      ≈1,040,000 Lichess puzzles spread over all ratings (select-lichess-1m.py,
 //                                  from the 2026-11-01 database); this repackaging has no RatingDeviation/
 //                                  NbPlays → the median deviation of the 10k file is used
@@ -69,9 +70,12 @@ for (const r of full) add(r.PuzzleId, r.FEN, r.Moves, +r.Rating, +r.RatingDeviat
 const rds = full.map((r) => +r.RatingDeviation).sort((a, b) => a - b);
 const medianRd = rds[Math.floor(rds.length / 2)];
 let n = 0;
-for (const r of csvRows(gunzipSync(readFileSync(here + 'lichess-puzzles-1m.csv.gz')).toString('utf8'))) {
-  add(r.PuzzleId, r.FEN, r.Moves, +r.Rating, medianRd, 0, r.Themes, 'l');
-  if (++n % 200000 === 0) console.log('…', n);
+// lichess-puzzles-1m.csv.gz (first selection) + lichess-puzzles-2m-1/2.csv.gz (2,000,000 more, select-lichess-2m.py)
+for (const file of readdirSync(here).filter((f) => /^lichess-puzzles-(1m|2m-\d)\.csv\.gz$/.test(f)).sort()) {
+  for (const r of csvRows(gunzipSync(readFileSync(here + file)).toString('utf8'))) {
+    add(r.PuzzleId, r.FEN, r.Moves, +r.Rating, medianRd, 0, r.Themes, 'l');
+    if (++n % 500000 === 0) console.log('…', n);
+  }
 }
 let gen = 0;
 for (const file of readdirSync(here).filter((f) => /^generated-.*\.json$/.test(f)).sort()) {
@@ -101,7 +105,7 @@ INDEXED_CATEGORIES.forEach((cat, k) => {
 });
 writeFileSync(outDir + 'cats.pz', gzipSync(Buffer.from(bits), { level: 9 }));
 writeFileSync(outDir + 'index.json', JSON.stringify({
-  source: 'Lichess puzzle database (CC0, database.lichess.org; file of 2026-11-01): ~1,040,000 puzzles spread over all ratings + the 10,000-puzzle subset; plus endgame/mate positions generated and verified with Stockfish',
+  source: 'Lichess puzzle database (CC0, database.lichess.org; file of 2026-11-01): ~3,040,000 puzzles spread over all ratings (selections of 1,040,000 + 2,000,000) + the 10,000-puzzle subset; plus endgame/mate positions generated and verified with Stockfish',
   n: N, chunk: CHUNK, cats: INDEXED_CATEGORIES.map((c) => c.id), bands: BANDS.map((b) => b.key), counts,
 }));
 console.log(`puzzles ${N} (lichess ${N - gen}, generated ${gen}), dropped ${dropped} with >5 solver moves; median RD used ${medianRd}`);
