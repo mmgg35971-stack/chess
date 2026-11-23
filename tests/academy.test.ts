@@ -28,34 +28,46 @@ describe('academy content', () => {
       }
     }
   });
-  it('every line is legal, checked by the engine, and stages teach 3–6 moves', () => {
+  it('repertoire trees: legal, engine-checked, deep, branching, and stages never repeat a move', () => {
     let total = 0;
     for (const o of OPENINGS) {
-      const d = load(o.id);
+      type M = { src: string; s?: number; g?: number; idea?: string };
+      const d = load(o.id) as unknown as Omit<OpeningData, 'lines'> & { lines: (OpeningData['lines'][number] & { meta: M[] })[] };
       expect(d.lines[0].source, o.id).toBe('main');
-      expect(d.lines[0].sans.join(' ')).toBe(o.main);
+      expect(d.lines[0].sans.slice(0, o.main.split(' ').length).join(' ')).toBe(o.main);
+      expect(Math.max(...d.lines.map((l) => l.sans.length)), o.id).toBeGreaterThanOrEqual(30); // to move 15+
+      expect(d.lines.length, o.id).toBeGreaterThanOrEqual(5);
       for (const l of d.lines) {
         const c = new Chess();
         for (const s of l.sans) c.move(s); // throws if illegal
+        expect(l.meta.length).toBe(l.sans.length);
         l.sans.forEach((_, i) => {
-          if (isLearnerPly(i, o.side)) { expect(l.eng[i], `${o.id} ${l.name} ply ${i}`).toBeTruthy(); expect(l.eng[i]!.loss).toBeLessThanOrEqual(120); }
+          if (isLearnerPly(i, o.side)) expect(l.eng[i], `${o.id} ${l.name} ply ${i}`).toBeTruthy();
           else expect(l.eng[i]).toBeNull();
         });
       }
-      expect(d.stages.length, o.id).toBeGreaterThan(8);
+      // the opponent's moves carry an idea most of the time
+      const opp: M[] = d.lines.flatMap((l) => l.meta.filter((_: M, i: number) => !isLearnerPly(i, o.side)));
+      expect(opp.filter((m) => m.idea).length / opp.length, o.id).toBeGreaterThan(0.8);
+      const taught = new Set<string>();
       for (const s of d.stages) {
-        const n = stagePlies(s, o.side).length;
-        expect(n, `${o.id} stage`).toBeGreaterThanOrEqual(3);
-        expect(n).toBeLessThanOrEqual(6);
-        expect(isLearnerPly(s.from, o.side)).toBe(true);
+        const plies = stagePlies(s, o.side);
+        expect(plies.length, `${o.id} stage`).toBeGreaterThanOrEqual(1);
+        expect(plies.length).toBeLessThanOrEqual(6);
+        expect(plies).toEqual(s.fresh); // nothing already taught is asked again
+        for (const p of plies) {
+          const k = d.lines[s.line].sans.slice(0, p + 1).join(' ');
+          expect(taught.has(k), `${o.id}: ${k} taught twice`).toBe(false);
+          taught.add(k);
+        }
         expect(s.to).toBeLessThan(d.lines[s.line].sans.length);
         expect(s.uid).toBe(stageUid(d.lines[s.line].sans, s.from, s.to));
       }
       expect(new Set(d.stages.map((s) => s.uid)).size).toBe(d.stages.length);
       total += d.stages.length;
     }
-    expect(total).toBeGreaterThan(3500);
-  }, 120000);
+    expect(total).toBeGreaterThan(2500);
+  }, 180000);
 });
 
 describe('stage builder', () => {

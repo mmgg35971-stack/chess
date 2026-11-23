@@ -39,7 +39,7 @@ export function narrate(line: RepLine, i: number, side: 'w' | 'b', L: Lang, opts
   const learner = isLearnerPly(i, side);
   const reasons = explainOpeningMove(before.fen(), san, L, { engine: learner ? line.eng[i] : null, note: opts.note ?? null, newName: opts.newName ?? null });
   if (learner) {
-    if (meta?.src === 'm' && meta.g) {
+    if ((meta?.src === 'm' || meta?.src === 'c') && meta.g && meta.s !== undefined) {
       out.push(ar ? `لعبها الأساتذة في ${meta.s ?? 0}% من ${meta.g} مباراة وصلت إلى هذه الوضعية.` : `Masters played it in ${meta.s ?? 0}% of ${meta.g} games that reached this position.`);
       if (meta.pop && meta.pop !== san) out.push(ar ? `الأكثر لعبًا هنا ${meta.pop}، لكن هذه النقلة أنسب لنظامك أو أدق عند المحرك.` : `The most played move here is ${meta.pop}, but this one fits your system or is more accurate for the engine.`);
     } else if (meta?.src === 'e') {
@@ -52,7 +52,7 @@ export function narrate(line: RepLine, i: number, side: 'w' | 'b', L: Lang, opts
     return { title: (ar ? 'نقلتك: ' : 'Your move: ') + moveNo, lines: out.map((x) => (ar && !x.includes('\u2066') ? isolateSan(x) : x)) };
   }
   // the opponent's move
-  if (meta?.src === 'm' && meta.g) out.push(ar ? `الخصم يلعب ${san} — لعبها الأساتذة في ${meta.s ?? 0}% من ${meta.g} مباراة.` : `The opponent plays ${san} — masters chose it in ${meta.s ?? 0}% of ${meta.g} games.`);
+  if ((meta?.src === 'm' || meta?.src === 'c') && meta.g && meta.s !== undefined) out.push(ar ? `الخصم يلعب ${san} — لعبها الأساتذة في ${meta.s ?? 0}% من ${meta.g} مباراة.` : `The opponent plays ${san} — masters chose it in ${meta.s ?? 0}% of ${meta.g} games.`);
   else if (meta?.src === 'e') out.push(ar ? `الخصم يلعب ${san} (أفضل رد عند Stockfish هنا).` : `The opponent plays ${san} (Stockfish’s best reply here).`);
   out.push(...reasons.map((r) => (ar ? 'لماذا: ' : 'Why: ') + r));
   if (meta?.idea) out.push((ar ? 'فكرته: ' : 'His idea: ') + describeIdea(fenAt(line.sans, i + 1).fen(), meta.idea, L) + (ar ? ' (تحليل Stockfish).' : ' (Stockfish).'));
