@@ -109,7 +109,7 @@ export function PuzzlesHome() {
 // ---------- solving ----------
 type Feedback = { kind: 'good' | 'bad' | 'info'; text: string } | null;
 
-export function PuzzleSolve({ cat }: { cat: string }) {
+export function PuzzleSolve({ cat, rows }: { cat: string; rows?: number[] }) {
   const { t, settings, go, bumpData } = useApp();
   const L = settings.lang;
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
@@ -128,6 +128,8 @@ export function PuzzleSolve({ cat }: { cat: string }) {
   const recorded = useRef(false);
   const t0 = useRef(0);
   const gen = useRef(0);
+  /** puzzles chosen by the coach chat are played first, then the category continues as usual */
+  const queue = useRef<number[]>(rows ? [...rows] : []);
 
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const next = useCallback(async () => {
@@ -139,7 +141,7 @@ export function PuzzleSolve({ cat }: { cat: string }) {
     setSt(null); setFb(null); setHint(null);
     const [r, prefs, seen] = await Promise.all([getPuzzleRating(), getSetting<Prefs>('puzzlePrefs', DEFAULT_PREFS), attemptedIds()]);
     const band = BANDS.find((b) => b.key === prefs.band);
-    const p = await puzzleStore.pick(cat, r.rating + DIFF_OFFSET[prefs.diff], seen, Math.random, band);
+    const p = queue.current.length ? await puzzleStore.get(queue.current.shift()!) : await puzzleStore.pick(cat, r.rating + DIFF_OFFSET[prefs.diff], seen, Math.random, band);
     if (my !== gen.current) return;
     setRating(r); setChange(null); setFb(null); setHint(null); setHints(0); setMoved(false); setAltUsed(false); setBusy(false);
     recorded.current = false;

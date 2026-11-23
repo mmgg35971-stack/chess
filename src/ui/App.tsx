@@ -14,6 +14,7 @@ import { LessonScreen, TopicPage } from './lessons/Lessons';
 import { PuzzlesHome, PuzzleSolve, PuzzleStatsScreen } from './puzzles/Puzzles';
 import { Coaches, CoachDetail } from './coach/CoachScreens';
 import { CoachGame } from './coach/CoachGame';
+import { CoachChat, AiSettings } from './coach/CoachChat';
 import { Analysis } from './analysis/Analysis';
 
 const NAV: { route: Route['name']; key: TKey; icon: IconName }[] = [
@@ -89,7 +90,7 @@ export function App() {
       case 'settings': return <Settings />;
       case 'coaches': return <Coaches />;
       case 'puzzles': return <PuzzlesHome />;
-      case 'puzzle': return <PuzzleSolve key={navKey} cat={route.cat} />;
+      case 'puzzle': return <PuzzleSolve key={navKey} cat={route.cat} rows={route.rows} />;
       case 'puzzleStats': return <PuzzleStatsScreen />;
       case 'openings': return <AcademyHome />;
       case 'opening': return <OpeningPage key={route.id} id={route.id} />;
@@ -99,11 +100,13 @@ export function App() {
       case 'lesson': return <LessonScreen key={navKey} id={route.id} />;
       case 'coach': return <CoachDetail id={route.id} />;
       case 'coachGame': return <CoachGame key={navKey} id={route.id} resume={route.resume} />;
+      case 'coachChat': return <CoachChat key={route.id} id={route.id} />;
+      case 'aiSettings': return <AiSettings />;
       case 'analysis': return <Analysis key={route.gameId} gameId={route.gameId} />;
     }
   })();
 
-  const activeNav = ['play', 'coach', 'coachGame'].includes(route.name) ? 'coaches' : ['games', 'analysis'].includes(route.name) ? 'home' : ['puzzle', 'puzzleStats'].includes(route.name) ? 'puzzles' : ['opening', 'openingStage', 'openingQuiz', 'topic', 'lesson'].includes(route.name) ? 'openings' : route.name;
+  const activeNav = ['play', 'coach', 'coachGame', 'coachChat'].includes(route.name) ? 'coaches' : ['games', 'analysis'].includes(route.name) ? 'home' : ['puzzle', 'puzzleStats'].includes(route.name) ? 'puzzles' : ['opening', 'openingStage', 'openingQuiz', 'topic', 'lesson'].includes(route.name) ? 'openings' : route.name === 'aiSettings' ? 'settings' : route.name;
 
   return (
     <AppCtx.Provider value={ctx}>

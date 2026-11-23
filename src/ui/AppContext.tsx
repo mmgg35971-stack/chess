@@ -7,7 +7,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'coaches' }
   | { name: 'puzzles' }
-  | { name: 'puzzle'; cat: string }
+  | { name: 'puzzle'; cat: string; rows?: number[] }
   | { name: 'puzzleStats' }
   | { name: 'openings' }
   | { name: 'opening'; id: string }
@@ -20,6 +20,8 @@ export type Route =
   | { name: 'games'; openId?: number }
   | { name: 'coach'; id: string }
   | { name: 'coachGame'; id: string; resume?: boolean }
+  | { name: 'coachChat'; id: string }
+  | { name: 'aiSettings' }
   | { name: 'analysis'; gameId: number };
 
 export interface Ctx {

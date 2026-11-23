@@ -43,7 +43,7 @@ function pickImage(): Promise<string | null> {
 }
 
 export function Settings() {
-  const { t, settings, setSettings, profile, refreshProfile, toast, bumpData } = useApp();
+  const { t, settings, setSettings, profile, refreshProfile, toast, bumpData, go } = useApp();
   const [name, setName] = useState(profile?.name ?? '');
   const [rating, setRating] = useState(profile?.rating ? String(profile.rating) : '');
   const [engineName, setEngineName] = useState('');
@@ -170,6 +170,12 @@ export function Settings() {
         </div>
         {toggle('showArrows', t('arrows'))}
         {toggle('autoAnalyze', t('autoAnalyze'))}
+      </section>
+
+      <section className="card">
+        <h2>{t('ai_title')}</h2>
+        <p className="small muted">{t('ch_privacy')}</p>
+        <button className="btn" onClick={() => go({ name: 'aiSettings' })} data-testid="open-ai-settings">{t('ch_settings')}</button>
       </section>
 
       <section className="card">

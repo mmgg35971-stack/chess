@@ -116,6 +116,15 @@ export function CoachDetail({ id }: { id: string }) {
         <div className="row gap wrap">{coach.strengths.map((s, i) => <span key={i} className="pill">{s[L]}</span>)}</div>
       </div>
 
+      <div className="card ch-entry">
+        <h2>{t('ch_open')}</h2>
+        <p className="small">{t('ch_openHint')}</p>
+        <div className="row gap wrap">
+          <button className="btn primary" onClick={() => go({ name: 'coachChat', id })} data-testid="coach-chat">{t('ch_open')}</button>
+          <span className="pill">{t('ch_online')}</span>
+        </div>
+      </div>
+
       <RealGamesCard id={coach.id} />
 
       <div className="card">

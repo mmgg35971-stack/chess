@@ -19,6 +19,13 @@ const ALLOWED = [
   // Help links inside Dexie error message strings (shown, never requested):
   /^https:\/\/tinyurl\.com\/y2uuvskb$/,
   /^http:\/\/bit\.ly\/2kdckMn$/,
+  // Optional online coach chat (off until the user adds their own API key; see DATA_SOURCES.md):
+  /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/openai\/$/,
+  /^https:\/\/api\.anthropic\.com\/v1\/$/,
+  /^https:\/\/api\.openai\.com\/v1\/$/,
+  // where to get a key (shown as text, never requested):
+  /^https:\/\/aistudio\.google\.com\/apikey$/,
+  /^https:\/\/console\.anthropic\.com\/settings\/keys$/,
 ];
 const files = [];
 (function walk(d) {

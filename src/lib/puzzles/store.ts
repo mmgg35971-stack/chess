@@ -95,6 +95,29 @@ export class PuzzleStore {
     if (fresh.length) return fresh[Math.floor(rng() * fresh.length)];
     return this.get(near[Math.floor(rng() * Math.min(25, near.length))]);
   }
+
+  /**
+   * Up to `n` puzzles of a category near `target`, optionally only those carrying one of `themes`
+   * (Lichess theme names). Unseen puzzles first. Returns store rows so they can be reopened later.
+   */
+  async pickMany(cat: string, target: number, n: number, opts: { themes?: string[]; attempted?: Set<string>; rng?: () => number } = {}): Promise<{ row: number; puzzle: Puzzle }[]> {
+    const idx = await this.index();
+    const rng = opts.rng ?? Math.random;
+    const near = nearest(idx, cat, target, opts.themes?.length ? 6000 : 300);
+    const found: { row: number; puzzle: Puzzle }[] = [];
+    const seenFallback: { row: number; puzzle: Puzzle }[] = [];
+    for (const row of near) {
+      const p = await this.get(row);
+      if (opts.themes?.length && !opts.themes.some((t) => p.themes.includes(t))) continue;
+      if (opts.attempted?.has(p.id)) { if (seenFallback.length < n) seenFallback.push({ row, puzzle: p }); continue; }
+      found.push({ row, puzzle: p });
+      if (found.length >= n * 4) break;
+    }
+    for (let i = found.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [found[i], found[j]] = [found[j], found[i]]; }
+    const out = found.slice(0, n);
+    for (const f of seenFallback) if (out.length < n) out.push(f);
+    return out.sort((a, b) => a.puzzle.rating - b.puzzle.rating);
+  }
 }
 
 /** Browser/WebView loader: .pz files are gzip; decompress unless the server already did. */
