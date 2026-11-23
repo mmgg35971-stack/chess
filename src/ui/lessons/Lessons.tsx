@@ -9,6 +9,7 @@ import { judgeAlternative } from '../../lib/puzzles/solver';
 import { isolateSan } from '../../lib/academy/explain';
 import { getEngine } from '../../lib/engine/engine';
 import { playMoveSound } from '../../lib/sound';
+import { Dock } from '../Dock';
 import type { OpeningStageRecord } from '../../lib/storage/db';
 
 const KEY = (id: string) => 'lesson:' + id;
@@ -145,7 +146,7 @@ export function LessonScreen({ id }: { id: string }) {
   const arrows = mode === 'learn' && !learnDone ? [arrowOf(ply)].filter(Boolean).map((a) => ({ from: a![0], to: a![1], color: isLearner(ply) ? '#3c9a3c' : '#e09a3c' })) : arrow ? [{ from: arrow[0], to: arrow[1], color: '#3c9ae0' }] : [];
 
   return (
-    <div className="screen play">
+    <div className="screen play has-dock">
       <div className="card ac-head">
         <div className="row between"><b>{lesson.title[L]}</b><span className="pill">{mode === 'learn' ? t('ac_learn') : t('ac_test')}</span></div>
         <div className="muted tiny">{topic.title[L]} · {t(('ls_goal_' + lesson.goal) as 'ls_goal_win')} · {learner === 'w' ? t('pz_white') : t('pz_black')}</div>
@@ -156,22 +157,17 @@ export function LessonScreen({ id }: { id: string }) {
           themeId={settings.boardTheme} pieceSet={settings.pieceSet} coordinates={settings.coordinates} showLegal={settings.showLegal} showLastMove={settings.showLastMove} animationMs={settings.animationMs} />
       </div>
       {mode === 'learn' && (
-        <div className="card" data-testid="ls-learn">
-          {ply === 0 && <p>{isolateSan(lesson.intro[L])}</p>}
-          {!learnDone ? (
-            <>
-              <h3>{isLearner(ply) ? t('ac_yourMove') : t('ac_reply')}: <bdi dir="ltr">{moves[ply]}</bdi></h3>
-              <p data-testid="ls-note">{note(ply)}</p>
-            </>
-          ) : <p>{t('ls_testHint')}</p>}
-          <div className="row gap wrap">
+        <Dock testId="ls-learn" resetKey={ply} title={!learnDone ? <b>{isLearner(ply) ? t('ac_yourMove') : t('ac_reply')}: <bdi dir="ltr">{moves[ply]}</bdi></b> : t('ls_testHint')}
+          footer={<div className="row gap wrap">
             <button className="btn" disabled={ply === 0} onClick={() => setPly(ply - 1)}>{t('ac_prev')}</button>
-            {!learnDone && <button className="btn" data-testid="ls-next" onClick={() => setPly(ply + 1)}>{t('ac_next')}</button>}
+            {!learnDone && <button className="btn primary" data-testid="ls-next" onClick={() => setPly(ply + 1)}>{t('ac_next')}</button>}
             {learnDone && <button className="btn primary" data-testid="ls-start-test" onClick={startTest}>{t('ac_startTest')}</button>}
-          </div>
-        </div>
+          </div>}>
+          {ply === 0 && <p>{isolateSan(lesson.intro[L])}</p>}
+          {!learnDone && <p data-testid="ls-note">{note(ply)}</p>}
+        </Dock>
       )}
-      {mode === 'test' && fb && <div className={'card ac-fb ' + fb.kind} data-testid="ls-feedback"><ul className="bullets">{fb.lines.filter(Boolean).map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
+      {mode === 'test' && fb && <Dock testId="ls-feedback" resetKey={fb} className={'ac-fb ' + fb.kind} title={<span className="muted">{t('ac_test')}</span>}><ul className="bullets">{fb.lines.filter(Boolean).map((x, i) => <li key={i}>{x}</li>)}</ul></Dock>}
       {mode === 'result' && (
         <div className="card" data-testid="ls-result">
           <h2>{mistakes === 0 ? t('ac_passed') : t('ac_failed', { n: mistakes })}</h2>

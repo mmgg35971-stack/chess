@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Chess, type Move, type Square } from 'chess.js';
 import { useApp } from '../AppContext';
 import { Board, type Arrow } from '../board/Board';
+import { Dock } from '../Dock';
 import { EvalBar, EvalGraph } from './EvalBar';
 import { LabelTable } from '../coach/CoachGame';
 import { getAnalysis, getGame } from '../../lib/storage/repo';
@@ -119,7 +120,7 @@ export function Analysis({ gameId }: { gameId: number }) {
   const key = evals.filter((e) => ['brilliant', 'great', 'mistake', 'blunder', 'missedWin'].includes(e.label));
 
   return (
-    <div className="screen play">
+    <div className="screen play has-dock">
       <div className="row between">
         <h1>{t('analysisTitle')}</h1>
         <button className="btn" onClick={() => go({ name: 'games', openId: undefined })}>{t('close')}</button>
@@ -148,24 +149,7 @@ export function Analysis({ gameId }: { gameId: number }) {
         <button className="btn" onClick={() => setOrientation(orientation === 'w' ? 'b' : 'w')}>⇅</button>
       </div>
       {curve.length > 1 && <EvalGraph curve={curve} current={ply} onPick={setPly} />}
-
-      <div className="card">
-        {running ? (
-          <div className="row gap between">
-            <span data-testid="progress">{t('analyzing', { done: job!.done, total: job!.total })}</span>
-            <button className="btn" onClick={cancelAnalysis}>{t('stop')}</button>
-          </div>
-        ) : (
-          <div className="row gap wrap between">
-            <span className="muted small">
-              {!analysis ? t('noAnalysis') : analysis.kind === 'live' ? t('liveAnalysisNote') : t('fullAnalysisNote', { depth: analysis.depth })}
-            </span>
-            <button className="btn primary" onClick={start} data-testid="run-analysis">{analysis?.kind === 'full' ? t('rerunAnalysis') : t('runAnalysis')}</button>
-          </div>
-        )}
-      </div>
-
-      <div className="card" data-testid="move-panel">
+      <Dock testId="move-panel" resetKey={ply} title={<span className="muted">{t('dock_explain')}</span>}>
         {ev && ex ? (
           <>
             <div className="row gap">
@@ -180,6 +164,23 @@ export function Analysis({ gameId }: { gameId: number }) {
           </>
         ) : (
           <p className="muted small">{ply === 0 ? t('startPosition') + ' — ' : ''}{evals.length ? t('selectMove') : t('noAnalysis')}</p>
+        )}
+      </Dock>
+
+
+      <div className="card">
+        {running ? (
+          <div className="row gap between">
+            <span data-testid="progress">{t('analyzing', { done: job!.done, total: job!.total })}</span>
+            <button className="btn" onClick={cancelAnalysis}>{t('stop')}</button>
+          </div>
+        ) : (
+          <div className="row gap wrap between">
+            <span className="muted small">
+              {!analysis ? t('noAnalysis') : analysis.kind === 'live' ? t('liveAnalysisNote') : t('fullAnalysisNote', { depth: analysis.depth })}
+            </span>
+            <button className="btn primary" onClick={start} data-testid="run-analysis">{analysis?.kind === 'full' ? t('rerunAnalysis') : t('runAnalysis')}</button>
+          </div>
         )}
       </div>
 

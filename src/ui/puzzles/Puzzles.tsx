@@ -37,10 +37,11 @@ const fmtRating = (s: { rating: number; rd: number }) => `${Math.round(s.rating)
 export function PuzzlesHome() {
   const { t, go, dataVersion } = useApp();
   const [all, setAll] = useState<PuzzleIndex | null>(null);
+  const [homeErr, setHomeErr] = useState<string | null>(null);
   const [rating, setRating] = useState<PuzzleRatingState | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   useEffect(() => {
-    puzzleStore.index().then(setAll);
+    puzzleStore.index().then(setAll).catch((e) => setHomeErr(String((e as Error)?.message ?? e)));
     getPuzzleRating().then(setRating);
     getSetting<Prefs>('puzzlePrefs', DEFAULT_PREFS).then(setPrefs);
   }, [dataVersion]);
@@ -83,7 +84,8 @@ export function PuzzlesHome() {
         </div>
         <p className="muted small">{t('pz_ratingNote')}</p>
       </div>
-      {!all && <div className="card muted">{t('pz_loading')}</div>}
+      {!all && !homeErr && <div className="card muted">{t('pz_loading')}</div>}
+      {homeErr && <div className="card" data-testid="pz-error">{t('pz_loadError')}<div className="muted tiny" dir="ltr">{homeErr}</div></div>}
       {counts && SECTIONS.map((s) => (
         <div className="card" key={s.id}>
           <h2>{t(('pz_section_' + s.id) as TKey)}</h2>
@@ -127,7 +129,12 @@ export function PuzzleSolve({ cat }: { cat: string }) {
   const t0 = useRef(0);
   const gen = useRef(0);
 
+  const [loadErr, setLoadErr] = useState<string | null>(null);
   const next = useCallback(async () => {
+    try { await nextInner(); } catch (e) { setLoadErr(String((e as Error)?.message ?? e)); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cat, settings.sound]);
+  const nextInner = async () => {
     const my = ++gen.current;
     setSt(null); setFb(null); setHint(null);
     const [r, prefs, seen] = await Promise.all([getPuzzleRating(), getSetting<Prefs>('puzzlePrefs', DEFAULT_PREFS), attemptedIds()]);
@@ -149,7 +156,7 @@ export function PuzzleSolve({ cat }: { cat: string }) {
       if (settings.sound) playMoveSound('move');
       t0.current = Date.now();
     }, 700);
-  }, [cat, settings.sound]);
+  };
 
   useEffect(() => { next(); return () => { gen.current++; }; }, [next]);
 
@@ -248,6 +255,7 @@ export function PuzzleSolve({ cat }: { cat: string }) {
   if (none) return (
     <div className="screen"><div className="card">{t('pz_none')}</div><button className="btn" onClick={() => go({ name: 'puzzles' })}>{t('pz_title')}</button></div>
   );
+  if (loadErr) return <div className="screen"><div className="card" data-testid="pz-error">{t('pz_loadError')}<div className="muted tiny" dir="ltr">{loadErr}</div></div></div>;
   if (!puzzle) return <div className="screen"><div className="card muted">{t('pz_loading')}</div></div>;
 
   const goal = goalOf(puzzle);

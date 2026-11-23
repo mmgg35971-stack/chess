@@ -19,11 +19,11 @@ const evaluate: Evaluate = async (fen) => {
   return { cp: l?.score.cp, mate: l?.score.mate, pv: l?.pv ?? [] };
 };
 
-const bytes = (path: string) => { const b = readFileSync('public/data/puzzles/' + path); return new Uint8Array(path.endsWith('.gz') ? gunzipSync(b) : b); };
+const bytes = (path: string) => { const b = readFileSync('public/data/puzzles/' + path); return new Uint8Array(path.endsWith('.pz') ? gunzipSync(b) : b); };
 const store = new PuzzleStore(async (path) => bytes(path));
 const idx = await store.index();
 // ~1M puzzles: keep a parsed sample in memory, stream the rest chunk by chunk
-const chunkLines = (c: number) => new TextDecoder().decode(bytes(`${c}.gz`)).split('\n');
+const chunkLines = (c: number) => new TextDecoder().decode(bytes(`${c}.pz`)).split('\n');
 const nChunks = Math.ceil(idx.n / idx.chunk);
 const all: Puzzle[] = [];
 for (let c = 0; c < nChunks; c++) {

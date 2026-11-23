@@ -4,6 +4,7 @@ import { useApp } from '../AppContext';
 import { Board, type Arrow } from '../board/Board';
 import { MoveList, TIME_CONTROLS } from '../screens/Play';
 import { EvalBar } from '../analysis/EvalBar';
+import { Dock } from '../Dock';
 import { CoachPortrait } from './Emblem';
 import type { CoachSetup } from './CoachScreens';
 import { coachById, coachLevel, coachTree, withMeasuredStyle } from '../../lib/coach/coaches';
@@ -438,9 +439,18 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
     </div>
   );
   const topColor: Color = orientation === 'w' ? 'b' : 'w';
+  const renderComment = (c: Comment) => (
+            <div key={c.id} className={'comment ' + c.who} data-testid={'comment-' + c.who}>
+              {c.who === 'review' && c.label && (
+                <span className={'lb lb-' + c.label}>{LABEL_SYMBOL[c.label]} {LABEL_TEXT[L][c.label]}</span>
+              )}
+              <span className="comment-san" dir="ltr">{c.san}</span>
+              {c.lines.map((l, i) => <p key={i}>{l}</p>)}
+            </div>
+          );
 
   return (
-    <div className="screen play">
+    <div className={'screen play' + (talk ? ' has-dock' : '')}>
       {bar(topColor)}
       <div className={'board-row' + (mode === 'training' ? ' with-bar' : '')}>
         {mode === 'training' && <EvalBar score={liveScore} orientation={orientation} />}
@@ -469,6 +479,12 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
           </strong>
         )}
       </div>
+
+      {talk && comments.length > 0 && (
+        <Dock testId="coach-dock" resetKey={comments[0]?.id} title={<span className="row gap"><CoachPortrait coach={coach} size={22} round /><span className="muted">{t('coachSays')} — {t('simulation')}</span></span>}>
+          <div className="comments-now" data-testid="comments-now">{comments.slice(0, 2).map(renderComment)}</div>
+        </Dock>
+      )}
 
       {!outcome && (
         <div className="row gap wrap">
@@ -506,18 +522,10 @@ export function CoachGame({ id, resume }: { id: string; resume?: boolean }) {
         />
       )}
 
-      {talk && comments.length > 0 && (
+      {talk && comments.length > 2 && (
         <div className="card comments" data-testid="comments">
-          <div className="row gap"><CoachPortrait coach={coach} size={24} round /><span className="muted small">{t('coachSays')} — {t('simulation')}</span></div>
-          {comments.map((c) => (
-            <div key={c.id} className={'comment ' + c.who} data-testid={'comment-' + c.who}>
-              {c.who === 'review' && c.label && (
-                <span className={'lb lb-' + c.label}>{LABEL_SYMBOL[c.label]} {LABEL_TEXT[L][c.label]}</span>
-              )}
-              <span className="comment-san" dir="ltr">{c.san}</span>
-              {c.lines.map((l, i) => <p key={i}>{l}</p>)}
-            </div>
-          ))}
+          <div className="muted small">{t('commentHistory')}</div>
+          {comments.slice(2).map(renderComment)}
         </div>
       )}
 

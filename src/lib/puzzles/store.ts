@@ -64,7 +64,7 @@ export class PuzzleStore {
   private chunks = new Map<number, Promise<string[]>>();
   constructor(private fetchBytes: FetchBytes) {}
   index(): Promise<PuzzleIndex> {
-    this.idx ??= Promise.all([this.fetchBytes('index.json'), this.fetchBytes('ratings.gz'), this.fetchBytes('cats.gz')])
+    this.idx ??= Promise.all([this.fetchBytes('index.json'), this.fetchBytes('ratings.pz'), this.fetchBytes('cats.pz')])
       .then(([m, r, c]) => decodeIndex(JSON.parse(text(m)), r, c));
     return this.idx;
   }
@@ -73,7 +73,7 @@ export class PuzzleStore {
     const c = Math.floor(i / idx.chunk);
     if (!this.chunks.has(c)) {
       if (this.chunks.size > 12) this.chunks.delete(this.chunks.keys().next().value!);
-      this.chunks.set(c, this.fetchBytes(`${c}.gz`).then((b) => text(b).split('\n')));
+      this.chunks.set(c, this.fetchBytes(`${c}.pz`).then((b) => text(b).split('\n')));
     }
     return parseLine((await this.chunks.get(c)!)[i % idx.chunk]);
   }
@@ -97,7 +97,7 @@ export class PuzzleStore {
   }
 }
 
-/** Browser/WebView loader: files are gzip; decompress unless the server already did. */
+/** Browser/WebView loader: .pz files are gzip; decompress unless the server already did. */
 export async function fetchGz(base: string, path: string): Promise<Uint8Array> {
   const r = await fetch(base + path);
   if (!r.ok) throw new Error('puzzle data ' + path);

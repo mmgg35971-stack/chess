@@ -63,6 +63,11 @@ jobs:
           ls -l "$APK"
           unzip -l "$APK" | grep -E "assets/public/(index.html|engine/|pieces/cburnett/wK)"
           unzip -l "$APK" | grep -q "assets/public/engine/stockfish-19-lite-single.wasm"
+          # the data the app fetches must be in the APK under the exact names it asks for
+          for f in data/puzzles/index.json data/puzzles/ratings.pz data/puzzles/cats.pz data/puzzles/0.pz data/academy/index.json data/academy/sicilian.json; do
+            unzip -l "$APK" | grep -q "assets/public/$f" || { echo "missing in APK: $f"; exit 1; }
+          done
+          echo "puzzle chunks in APK: $(unzip -l "$APK" | grep -c 'assets/public/data/puzzles/[0-9]*\.pz')"
           cp "$APK" chess-academy.apk
 
       - uses: actions/upload-artifact@v4

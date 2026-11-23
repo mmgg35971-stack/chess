@@ -1,8 +1,10 @@
 // Builds the offline puzzle library (≈1 million puzzles) into public/data/puzzles/:
 //   index.json   meta: n, chunk size, category ids and counts per rating band
-//   ratings.gz   Uint16 rating of every row (rows sorted by rating)
-//   cats.gz      one bitset per category (in index.json order), ceil(n/8) bytes each
-//   <k>.gz       1000 rows per file: id|fen|moves|rating|rd|plays|themes|material|source
+//   ratings.pz   Uint16 rating of every row (rows sorted by rating)
+//   cats.pz      one bitset per category (in index.json order), ceil(n/8) bytes each
+//   <k>.pz       1000 rows per file: id|fen|moves|rating|rd|plays|themes|material|source
+// All .pz files are gzip data. They must NOT end in .gz: the Android build silently unpacks .gz
+// assets and drops the extension, which broke loading in the app.
 //
 // Sources (all CC0 except the generated ones, which are part of this project):
 //   lichess-puzzles-10000.csv      10,000 Lichess puzzles with full columns (RatingDeviation, NbPlays…)
@@ -80,12 +82,12 @@ rows.sort((a, b) => a.rating - b.rating || (a.id < b.id ? -1 : 1));
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 for (let k = 0; k * CHUNK < rows.length; k++) {
-  writeFileSync(`${outDir}${k}.gz`, gzipSync(rows.slice(k * CHUNK, (k + 1) * CHUNK).map((r) => r.line).join('\n'), { level: 9 }));
+  writeFileSync(`${outDir}${k}.pz`, gzipSync(rows.slice(k * CHUNK, (k + 1) * CHUNK).map((r) => r.line).join('\n'), { level: 9 }));
 }
 const N = rows.length, B = Math.ceil(N / 8);
 const ratings = new Uint16Array(N);
 rows.forEach((r, i) => { ratings[i] = r.rating; });
-writeFileSync(outDir + 'ratings.gz', gzipSync(Buffer.from(ratings.buffer), { level: 9 }));
+writeFileSync(outDir + 'ratings.pz', gzipSync(Buffer.from(ratings.buffer), { level: 9 }));
 const bits = new Uint8Array(B * INDEXED_CATEGORIES.length);
 const counts: Record<string, number[]> = {};
 INDEXED_CATEGORIES.forEach((cat, k) => {
@@ -97,7 +99,7 @@ INDEXED_CATEGORIES.forEach((cat, k) => {
   });
   counts[cat.id] = perBand;
 });
-writeFileSync(outDir + 'cats.gz', gzipSync(Buffer.from(bits), { level: 9 }));
+writeFileSync(outDir + 'cats.pz', gzipSync(Buffer.from(bits), { level: 9 }));
 writeFileSync(outDir + 'index.json', JSON.stringify({
   source: 'Lichess puzzle database (CC0, database.lichess.org; file of 2026-11-01): ~1,040,000 puzzles spread over all ratings + the 10,000-puzzle subset; plus endgame/mate positions generated and verified with Stockfish',
   n: N, chunk: CHUNK, cats: INDEXED_CATEGORIES.map((c) => c.id), bands: BANDS.map((b) => b.key), counts,

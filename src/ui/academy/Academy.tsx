@@ -7,6 +7,8 @@ import { legalTargets, isPromotion, checkedKingSquare } from '../../lib/chess/ga
 import { OPENINGS, openingById } from '../../lib/academy/defs';
 import { INFO } from '../../lib/academy/info';
 import { explainOpeningMove } from '../../lib/academy/explain';
+import { narrate, type RepLine } from '../../lib/academy/narrate';
+import { Dock } from '../Dock';
 import { stagePlies, isLearnerPly } from '../../lib/academy/stages';
 import {
   makeQuiz, nextStage, quizDue, quizzesOf, recordQuiz, recordStageTest, stageRecords, allStageRecords, type OpeningData, type QuizItem,
@@ -105,8 +107,8 @@ export function OpeningPage({ id }: { id: string }) {
     loadOpening(id).then((d) => { setData(d); stageRecords(id, d).then(setRecs); });
     quizzesOf(id).then(setQuizzes);
   }, [id, dataVersion]);
-  const main = def.main.split(' ');
-  const pos = useMemo(() => fenAt(main, ply), [ply, def.main]);
+  const main = data?.lines[0]?.sans ?? def.main.split(' ');
+  const pos = useMemo(() => fenAt(main, ply), [ply, main]); // eslint-disable-line react-hooks/exhaustive-deps
   const done = [...recs.values()].filter((r) => r.completedAt).length;
   const due = quizDue(done, quizzes);
   const next = data ? nextStage(data, recs) : 0;
@@ -142,14 +144,10 @@ export function OpeningPage({ id }: { id: string }) {
           <button className="btn" onClick={() => setPly(main.length)} disabled={ply === main.length}>⏭</button>
         </div>
         <p dir="ltr" className="small ac-moves">{main.map((s, i) => <span key={i} className={i === ply - 1 ? 'mv cur' : 'mv'} onClick={() => setPly(i + 1)}>{i % 2 === 0 ? `${i / 2 + 1}.` : ''}{s} </span>)}</p>
-        {ply > 0 && (
-          <ul className="bullets small" data-testid="ac-main-explain">
-            {explainOpeningMove(fenAt(main, ply - 1).fen(), main[ply - 1], L, {
-              note: info?.notes[ply - 1] ?? null, newName: nameAt(main, ply - 1),
-              engine: isLearnerPly(ply - 1, def.side) ? data?.lines[0]?.eng[ply - 1] ?? null : null,
-            }).map((x, i) => <li key={i}>{x}</li>)}
-          </ul>
-        )}
+        {ply > 0 && data && (() => {
+          const n = narrate(data.lines[0] as RepLine, ply - 1, def.side, L, { note: info?.notes[ply - 1] ?? null, newName: nameAt(main, ply - 1) });
+          return (<><b className="small">{n.title}</b><ul className="bullets small" data-testid="ac-main-explain">{n.lines.map((x, i) => <li key={i}>{x}</li>)}</ul></>);
+        })()}
       </div>
 
       {info && (
@@ -235,15 +233,29 @@ export function StageScreen({ id, stage }: { id: string; stage: number }) {
   const plies = stagePlies(st, side);
   const lastLearner = plies[plies.length - 1];
   const note = (i: number) => (line.source === 'main' ? INFO[id]?.notes[i] ?? null : null);
-  const explain = (i: number) => explainOpeningMove(fenAt(sans, i).fen(), sans[i], L, {
-    engine: isLearnerPly(i, side) ? line.eng[i] : null, note: note(i), newName: nameAt(sans, i),
-  });
+  const tell = (i: number) => narrate(line as RepLine, i, side, L, { note: note(i), newName: nameAt(sans, i) });
   const moveArrow = (i: number): [Square, Square] | null => { if (i >= sans.length) return null; const m = fenAt(sans, i).move(sans[i]); return [m.from as Square, m.to as Square]; };
 
   // learn mode: the current move to explain is sans[ply]
   const learnIdx = ply;
   const learnDone = mode === 'learn' && ply > st.to;
-  const startTest = () => { setMode('test'); setPly(st.from); setMistakes(0); setFb({ kind: 'info', lines: [t('ac_testHint')] }); setArrow(null); t0.current = Date.now(); };
+  /** the stage may start with the opponent's move (a deviation): play it, then it is your turn */
+  const autoOpponent = (p: number, keep: string[] = []) => {
+    if (p > st.to || isLearnerPly(p, side)) return;
+    busy.current = true;
+    setTimeout(() => {
+      busy.current = false;
+      if (settings.sound) playMoveSound('move');
+      const n = tell(p);
+      setFb({ kind: 'info', lines: [...keep, n.title, ...n.lines] });
+      setPly(p + 1);
+    }, 600);
+  };
+  const startTest = () => {
+    setMode('test'); setPly(st.from); setMistakes(0); setArrow(null); t0.current = Date.now();
+    setFb({ kind: 'info', lines: [t('ac_testHint')] });
+    autoOpponent(st.from, [t('ac_testHint')]);
+  };
 
   const finishTest = async (m: number) => {
     const rec = await recordStageTest(id, stage, m, Date.now() - t0.current, st.uid);
@@ -263,12 +275,12 @@ export function StageScreen({ id, stage }: { id: string; stage: number }) {
       return true;
     }
     if (mv.san !== want) {
-      // another known theory move from this position is not counted as a mistake
+      // another known move of the repertoire from this position is not counted as a mistake
       const prefix = sans.slice(0, ply).join(' ');
       const other = data.lines.find((l) => l.sans.slice(0, ply).join(' ') === prefix && l.sans[ply] === mv.san);
-      const reason = explain(ply);
+      const n = tell(ply);
       if (other) setFb({ kind: 'info', lines: [t('ac_alsoTheory', { san: mv.san, name: other.name, want }), t('ac_playIt')] });
-      else { setMistakes((x) => x + 1); setFb({ kind: 'bad', lines: [t('ac_wrong', { san: want }), ...reason, t('ac_playIt')] }); }
+      else { setMistakes((x) => x + 1); setFb({ kind: 'bad', lines: [t('ac_wrong', { san: want }), ...n.lines, t('ac_playIt')] }); }
       setArrow(moveArrow(ply));
       return false;
     }
@@ -278,50 +290,44 @@ export function StageScreen({ id, stage }: { id: string; stage: number }) {
     const nextPly = ply + 1;
     setPly(nextPly);
     if (ply >= lastLearner) { finishTest(mistakes); return true; }
-    // the opponent's reply
-    busy.current = true;
-    setTimeout(() => { busy.current = false; if (settings.sound) playMoveSound('move'); setPly(nextPly + 1); }, 500);
+    autoOpponent(nextPly, [t('ac_correct')]);
     return true;
   };
 
   const curIsLearner = isLearnerPly(ply, side);
   const movable = mode === 'test' ? (curIsLearner && ply <= lastLearner ? side : null) : mode === 'learn' && curIsLearner && ply <= st.to ? side : null;
   const arrows = mode === 'learn' && !learnDone ? [moveArrow(learnIdx)].filter(Boolean).map((a) => ({ from: a![0], to: a![1], color: isLearnerPly(learnIdx, side) ? '#3c9a3c' : '#e09a3c' })) : arrow ? [{ from: arrow[0], to: arrow[1], color: '#3c9ae0' }] : [];
+  const cur = mode === 'learn' && !learnDone ? tell(learnIdx) : null;
 
   return (
-    <div className="screen play">
-      <div className="card ac-head">
-        <div className="row between"><b>{def.name[L]} · {t('ac_stage', { n: stage + 1 })}</b><span className="pill">{mode === 'learn' ? t('ac_learn') : t('ac_test')}</span></div>
-        <div className="muted tiny" dir="ltr">{line.name}{line.eco ? ` (${line.eco})` : ''}</div>
-        <div className="muted tiny">{t('ac_learnerMoves', { n: plies.length })}</div>
+    <div className="screen play has-dock">
+      <div className="ac-head-line row between">
+        <b className="small">{def.name[L]} · {t('ac_stage', { n: stage + 1 })} / {data.stages.length}</b>
+        <span className="pill">{mode === 'learn' ? t('ac_learn') : t('ac_test')}</span>
       </div>
       <div className="board-row">
         <Board fen={board.fen()} orientation={side} movable={movable} targets={(sq) => legalTargets(board, sq)} needsPromotion={(f, to) => isPromotion(board, f, to)}
           onMove={onMove} lastMove={lastOf(sans, ply)} checkSquare={checkedKingSquare(board)} arrows={arrows} {...bp} />
       </div>
-      <p className="small ac-moves" data-testid="ac-moves"><span className="muted">{t('ac_movesSoFar')}: </span><bdi dir="ltr">{moveList(sans.slice(0, ply)) || '—'}</bdi></p>
 
       {mode === 'learn' && (
-        <div className="card" data-testid="ac-learn">
-          {!learnDone ? (
-            <>
-              <h3>{isLearnerPly(learnIdx, side) ? t('ac_yourMove') : t('ac_reply')}: <span dir="ltr">{learnIdx % 2 === 0 ? `${learnIdx / 2 + 1}.` : `${Math.floor(learnIdx / 2) + 1}...`}{sans[learnIdx]}</span></h3>
-              <ul className="bullets" data-testid="ac-explain">{explain(learnIdx).map((x, i) => <li key={i}>{x}</li>)}</ul>
-            </>
-          ) : <p>{t('ac_testHint')}</p>}
-          <div className="row gap wrap">
+        <Dock testId="ac-learn" resetKey={ply} title={cur ? <b data-testid="ac-move-title">{cur.title}</b> : t('ac_testHint')}
+          footer={<div className="row gap wrap">
             <button className="btn" disabled={ply <= st.from} onClick={() => setPly(ply - 1)}>{t('ac_prev')}</button>
-            {!learnDone && <button className="btn" data-testid="ac-next" onClick={() => setPly(ply + 1)}>{t('ac_next')}</button>}
+            {!learnDone && <button className="btn primary" data-testid="ac-next" onClick={() => setPly(ply + 1)}>{t('ac_next')}</button>}
             {learnDone ? <button className="btn primary" data-testid="ac-start-test" onClick={startTest}>{t('ac_startTest')}</button>
               : <button className="btn" data-testid="ac-skip-learn" onClick={startTest}>{t('ac_skipLearn')}</button>}
-          </div>
-        </div>
+          </div>}>
+          {cur && <ul className="bullets" data-testid="ac-explain">{cur.lines.map((x, i) => <li key={i}>{x}</li>)}</ul>}
+        </Dock>
       )}
       {mode === 'test' && fb && (
-        <div className={'card ac-fb ' + fb.kind} data-testid="ac-feedback">
+        <Dock testId="ac-feedback" resetKey={fb} className={'ac-fb ' + fb.kind} title={<span className="muted">{t('ac_test')}</span>}>
           <ul className="bullets">{fb.lines.map((x, i) => <li key={i}>{x}</li>)}</ul>
-        </div>
+        </Dock>
       )}
+      <p className="small ac-moves" data-testid="ac-moves"><span className="muted">{t('ac_movesSoFar')}: </span><bdi dir="ltr">{moveList(sans.slice(0, ply)) || '—'}</bdi></p>
+      <div className="muted tiny" dir="ltr">{line.name}{line.eco ? ` (${line.eco})` : ''} · {t('ac_learnerMoves', { n: plies.length })}</div>
       {mode === 'result' && (
         <div className="card" data-testid="ac-result">
           <h2>{mistakes === 0 ? t('ac_passed') : t('ac_failed', { n: mistakes })}</h2>
@@ -387,7 +393,7 @@ export function QuizScreen({ id }: { id: string }) {
     setDone(q); bumpData();
   };
   return (
-    <div className="screen play">
+    <div className="screen play has-dock">
       <div className="card ac-head">
         <b>{t('ac_quizTitle', { name: def.name[L] })}</b>
         <div className="muted small">{t('ac_quizInfo', { n: items.length })}</div>
@@ -399,10 +405,10 @@ export function QuizScreen({ id }: { id: string }) {
       </div>
       <p dir="ltr" className="small ac-moves">{moveList(sans.slice(0, it.ply))}</p>
       {shown && !done && (
-        <div className={'card ac-fb ' + (shown.ok ? 'good' : 'bad')} data-testid="ac-quiz-feedback">
+        <Dock testId="ac-quiz-feedback" resetKey={k} className={'ac-fb ' + (shown.ok ? 'good' : 'bad')} title={<b>{shown.ok ? t('ac_correct') : t('ac_quiz')}</b>}
+          footer={<button className="btn primary" onClick={nextItem} data-testid="ac-quiz-next">{t('ac_quizNext')}</button>}>
           <ul className="bullets">{shown.lines.map((x, i) => <li key={i}>{x}</li>)}</ul>
-          <button className="btn primary" onClick={nextItem} data-testid="ac-quiz-next">{t('ac_quizNext')}</button>
-        </div>
+        </Dock>
       )}
       {done && (
         <div className="card" data-testid="ac-quiz-result">

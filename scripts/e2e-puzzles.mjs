@@ -13,7 +13,7 @@ mkdirSync('test-shots', { recursive: true });
 
 // puzzle lookup by the position shown on the board (after the opponent's set-up move)
 // the library has ~1M puzzles in gzip chunks: find a puzzle by the id the page shows
-const texts = readdirSync('public/data/puzzles').filter((x) => /^\d+\.gz$/.test(x)).map((f) => gunzipSync(readFileSync('public/data/puzzles/' + f)).toString());
+const texts = readdirSync('public/data/puzzles').filter((x) => /^\d+\.pz$/.test(x)).map((f) => gunzipSync(readFileSync('public/data/puzzles/' + f)).toString());
 function byId(id) {
   for (const t of texts) {
     const i = t.startsWith(id + '|') ? 0 : t.indexOf('\n' + id + '|');
@@ -62,10 +62,14 @@ async function sqXY(sq, orientation) {
   return { x: box.x + col * s + s / 2, y: box.y + row * s + s / 2 };
 }
 async function drag(uci, orientation) {
+  const before = await boardFen();
   const a = await sqXY(uci.slice(0, 2), orientation), b = await sqXY(uci.slice(2, 4), orientation);
   await page.mouse.move(a.x, a.y); await page.mouse.down();
   await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 5 });
   await page.mouse.move(b.x, b.y, { steps: 5 }); await page.mouse.up();
+  // if the drag was not taken (e.g. during an animation), tap the piece and then the square
+  const moved = await page.waitForFunction((f) => document.querySelector('svg.board')?.getAttribute('data-fen') !== f, before, { timeout: 1500 }).then(() => true).catch(() => false);
+  if (!moved) { await page.mouse.click(a.x, a.y); await page.waitForTimeout(150); await page.mouse.click(b.x, b.y); }
 }
 /** waits for the set-up move, returns the puzzle shown (skipping ones that need a promotion) */
 async function currentPuzzle() {
@@ -80,7 +84,8 @@ async function currentPuzzle() {
       // the board must show the position after the set-up move
       if (q) { const c = new Chess(q.fen); const m = q.moves[0]; c.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] }); if (c.fen() === f) p = q; }
     }
-    if (p && !p.moves.some((u, k) => k % 2 === 1 && u.length === 5)) return { ...p, color: f.split(' ')[1] };
+    // let the set-up move's animation finish before touching the board
+    if (p && !p.moves.some((u, k) => k % 2 === 1 && u.length === 5)) { await page.waitForTimeout(500); return { ...p, color: f.split(' ')[1] }; }
     await page.getByTestId('pz-skip').click();
     await page.waitForTimeout(900);
   }
