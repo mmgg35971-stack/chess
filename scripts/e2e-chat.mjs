@@ -9,6 +9,7 @@ const { chromium } = require('playwright');
 const PORT = 4325;
 const BASE = `http://localhost:${PORT}/`;
 const AI = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+const FREE = 'https://text.pollinations.ai/openai/chat/completions';
 mkdirSync('test-shots', { recursive: true });
 
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
@@ -20,6 +21,8 @@ const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, de
 
 const requests = [];
 const script = [];
+const freeRequests = [];
+const scriptFree = [];
 const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' };
 const external = [];
 await ctx.route('**/*', async (route) => {
@@ -30,6 +33,12 @@ await ctx.route('**/*', async (route) => {
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     requests.push({ headers: req.headers(), body: JSON.parse(req.postData() || '{}') });
     const next = script.shift() ?? { status: 500, body: { error: { message: 'no scripted reply' } } };
+    return route.fulfill({ status: next.status ?? 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify(next.body) });
+  }
+  if (req.url() === FREE) {
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    freeRequests.push({ headers: req.headers(), body: JSON.parse(req.postData() || '{}') });
+    const next = scriptFree.shift() ?? { status: 500, body: { error: 'no scripted reply' } };
     return route.fulfill({ status: next.status ?? 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify(next.body) });
   }
   external.push(u.href);
@@ -60,23 +69,75 @@ const answer = [
 await page.goto(BASE);
 await page.waitForSelector('[data-testid=nav-coaches]');
 
-await step('coach page offers the chat; without a key the chat asks for one', async () => {
+await step('the chat works with no key and no internet (offline coach is the default)', async () => {
   await page.getByTestId('nav-coaches').click();
   await page.getByTestId('coach-carlsen').click();
   await page.getByTestId('coach-chat').click();
-  await page.getByTestId('ch-nokey').waitFor();
-  expectTrue(await page.getByTestId('ch-input').isDisabled(), 'input should be disabled without a key');
+  await page.getByTestId('ch-sugg').first().waitFor();
+  expectTrue(await page.getByTestId('ch-nokey').count() === 0, 'no "add a key" card');
+  expectTrue(/بدون مفتاح/.test(await page.getByTestId('ch-mode').innerText()), 'offline mode label');
+  await page.getByTestId('ch-sugg').nth(1).click(); // opposition
+  await page.getByTestId('ch-coach').waitFor({ timeout: 30000 });
+  await page.getByTestId('ch-board').first().waitFor();
+  await page.getByTestId('ch-pz').first().waitFor({ timeout: 30000 });
+  const txt = await page.getByTestId('ch-coach').first().innerText();
+  expectTrue(/المعارضة/.test(txt) && /Dvoretsky|Capablanca/.test(txt), 'reply text: ' + txt.slice(0, 200));
+  expectTrue(requests.length === 0, 'no model call in offline mode');
+  await page.screenshot({ path: 'test-shots/41-offline-coach.png', fullPage: true });
+});
+
+await step('follow-up topics continue the conversation', async () => {
+  await page.getByTestId('ch-ask').first().click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=ch-coach]').length === 2, null, { timeout: 30000 });
+  expectTrue(await page.getByTestId('ch-user').count() === 2, 'question added');
+});
+
+await step('a pasted FEN is analysed with Stockfish on the device', async () => {
+  await page.getByTestId('ch-input').fill('حلل هذه الوضعية: 6k1/5ppp/8/8/8/8/q4PPP/4R1K1 w - - 0 1');
+  await page.getByTestId('ch-send').click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=ch-coach]').length === 3, null, { timeout: 60000 });
+  const last = page.getByTestId('ch-coach').nth(2);
+  const txt = await last.innerText();
+  expectTrue(/Stockfish/.test(txt) && /Re8#/.test(txt), 'analysis: ' + txt.slice(0, 300));
+  await last.getByTestId('ch-line').waitFor();
 });
 
 await step('the honest note lists the books in the library', async () => {
   await page.getByTestId('ch-info').click();
-  await page.getByTestId('ch-info-body').getByText('Chess Strategy').waitFor({ timeout: 15000 });
+  await page.getByTestId('ch-network').waitFor({ timeout: 15000 });
+  await page.getByTestId('ch-network').locator('summary').click();
+  await page.getByTestId('ch-network').getByText('My System').waitFor();
   const txt = await page.getByTestId('ch-info-body').innerText();
-  expectTrue(/200/.test(txt) && !/\{name\}/.test(txt) && /Capablanca/.test(txt) && /Chess Strategy/.test(txt), 'note: ' + txt.slice(0, 200));
+  expectTrue(/155|1\d\d/.test(txt) && !/\{\w+\}/.test(txt) && /Capablanca/.test(txt), 'note: ' + txt.slice(0, 300));
+  await page.getByTestId('ch-info').click();
+});
+
+await step('the free online mode (no key) answers, and falls back to the offline coach when it fails', async () => {
+  await page.getByTestId('ch-settings').click();
+  await page.getByTestId('ai-p-free').click();
+  expectTrue(await page.getByTestId('ai-key').count() === 0, 'no key field for the free mode');
+  await page.getByTestId('ai-save').click();
+  await page.getByTestId('nav-coaches').click();
+  await page.getByTestId('coach-carlsen').click();
+  await page.getByTestId('coach-chat').click();
+  await page.getByTestId('ch-clear').click();
+  scriptFree.push({ body: { choices: [{ message: { content: 'هذا رد النموذج المجاني عن البيدق المعزول.' } }] } });
+  await page.getByTestId('ch-input').fill('اشرح البيدق المعزول');
+  await page.getByTestId('ch-send').click();
+  await page.getByText('هذا رد النموذج المجاني').waitFor({ timeout: 20000 });
+  const req = freeRequests[0];
+  expectTrue(req && !req.headers.authorization, 'free mode sends no key');
+  expectTrue(/isolated-pawn/.test(req.body.messages[0].content), 'matching concepts sent as context');
+  scriptFree.push({ status: 500, body: { error: 'down' } });
+  await page.getByTestId('ch-input').fill('اشرح لي وضعية لوسينا');
+  await page.getByTestId('ch-send').click();
+  await page.getByText('فأجابك المدرب المحلي').waitFor({ timeout: 20000 });
+  await page.getByTestId('ch-coach').nth(1).getByTestId('ch-board').waitFor();
 });
 
 await step('adding a key in AI settings (stored locally, not in backups)', async () => {
   await page.getByTestId('ch-settings').click();
+  await page.getByTestId('ai-p-gemini').click();
   await page.getByTestId('ai-key').fill('test-key-123');
   await page.getByTestId('ai-save').click();
   const stored = await page.evaluate(() => localStorage.getItem('cga.ai'));
@@ -84,6 +145,7 @@ await step('adding a key in AI settings (stored locally, not in backups)', async
   await page.getByTestId('nav-coaches').click();
   await page.getByTestId('coach-carlsen').click();
   await page.getByTestId('coach-chat').click();
+  await page.getByTestId('ch-clear').click();
   await page.getByTestId('ch-sugg').first().waitFor();
 });
 
@@ -95,8 +157,8 @@ await step('a question runs the Stockfish tool and renders board, line, puzzles 
   expectTrue(requests.length === 2, 'expected 2 model calls, got ' + requests.length);
   const first = requests[0];
   expectTrue(first.headers.authorization === 'Bearer test-key-123', 'auth header');
-  expectTrue(/Carlsen/.test(first.body.messages[0].content) && /NOT analysed 200 books/.test(first.body.messages[0].content), 'system prompt');
-  expectTrue(first.body.tools.length === 2, 'tools offered');
+  expectTrue(/Carlsen/.test(first.body.messages[0].content) && /search_knowledge FIRST/.test(first.body.messages[0].content), 'system prompt');
+  expectTrue(first.body.tools.length === 3, 'tools offered');
   const toolMsg = requests[1].body.messages.find((m) => m.role === 'tool');
   const res = JSON.parse(toolMsg.content);
   expectTrue(typeof res.eval === 'string' && res.bestLines.length >= 1, 'engine result: ' + toolMsg.content);

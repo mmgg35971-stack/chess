@@ -28,15 +28,16 @@ const SYNONYMS: Record<string, string[]> = {
   sacrifice: ['sacrific'], sacrific: ['sacrifice'], combination: ['combin'], opposition: ['oppos'],
 };
 
-export class BookIndex {
+/** Okapi BM25 over plain-text documents (with the chess synonyms above). */
+export class Bm25 {
   private df = new Map<string, number>();
   private tf: Map<string, number>[] = [];
   private len: number[] = [];
   private avg = 1;
-  constructor(public data: BookFile) {
-    for (const [, h, t] of data.chunks) {
+  constructor(docs: string[]) {
+    for (const d of docs) {
       const m = new Map<string, number>();
-      const toks = tokens(h + ' ' + t);
+      const toks = tokens(d);
       for (const w of toks) m.set(w, (m.get(w) ?? 0) + 1);
       for (const w of m.keys()) this.df.set(w, (this.df.get(w) ?? 0) + 1);
       this.tf.push(m);
@@ -45,27 +46,38 @@ export class BookIndex {
     this.avg = this.len.reduce((a, b) => a + b, 0) / Math.max(1, this.len.length);
   }
 
-  /** BM25 search; `focus` keeps passages of books about that subject (opening, endgame, history…). */
-  search(query: string, k = 4, focus?: string): Passage[] {
+  search(query: string, k: number, keep?: (i: number) => boolean): [number, number][] {
     const q = new Set<string>();
     for (const w of tokens(query)) { q.add(w); for (const s of SYNONYMS[w] ?? []) q.add(s); }
     if (!q.size) return [];
     const N = this.tf.length, k1 = 1.2, b = 0.75;
     const scores: [number, number][] = [];
     for (let i = 0; i < N; i++) {
-      const bk = this.data.books[this.data.chunks[i][0]];
-      if (focus && !bk.focus.includes(focus)) continue;
+      if (keep && !keep(i)) continue;
       let s = 0;
       for (const w of q) {
         const f = this.tf[i].get(w);
         if (!f) continue;
-        const idf = Math.log(1 + (N - (this.df.get(w) ?? 0) + 0.5) / ((this.df.get(w) ?? 0) + 0.5));
+        const df = this.df.get(w) ?? 0;
+        const idf = Math.log(1 + (N - df + 0.5) / (df + 0.5));
         s += idf * (f * (k1 + 1)) / (f + k1 * (1 - b + b * this.len[i] / this.avg));
       }
       if (s > 0) scores.push([s, i]);
     }
-    scores.sort((a, b) => b[0] - a[0]);
-    return scores.slice(0, k).map(([score, i]) => {
+    return scores.sort((a, b) => b[0] - a[0]).slice(0, k);
+  }
+}
+
+export class BookIndex {
+  private bm: Bm25;
+  constructor(public data: BookFile) {
+    this.bm = new Bm25(data.chunks.map(([, h, t]) => h + ' ' + t));
+  }
+
+  /** BM25 search; `focus` keeps passages of books about that subject (opening, endgame, history…). */
+  search(query: string, k = 4, focus?: string): Passage[] {
+    const keep = focus ? (i: number) => this.data.books[this.data.chunks[i][0]].focus.includes(focus) : undefined;
+    return this.bm.search(query, k, keep).map(([score, i]) => {
       const [bi, heading, text] = this.data.chunks[i];
       return { book: this.data.books[bi], heading, text, score, index: i };
     });

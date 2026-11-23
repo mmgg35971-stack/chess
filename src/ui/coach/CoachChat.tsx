@@ -15,16 +15,19 @@ import { checkedKingSquare } from '../../lib/chess/game';
 import { topicById, lessonById } from '../../lib/lessons/lessons';
 import { openingById } from '../../lib/academy/defs';
 import { bookIndex, type BookIndex } from '../../lib/ai/books';
-import { AiError, PROVIDERS, defaultHttp, listModels, loadAiConfig, saveAiConfig, chat, type AiConfig, type Http, type Msg, type ProviderId } from '../../lib/ai/client';
+import { knowledgeIndex, type KnowledgeIndex } from '../../lib/ai/knowledge';
+import { AiError, PROVIDERS, needsKey, defaultHttp, listModels, loadAiConfig, saveAiConfig, chat, type AiConfig, type Http, type Msg, type ProviderId } from '../../lib/ai/client';
 import { buildSystemPrompt, runTurn, puzzleQuery, type AnalyseResult } from '../../lib/ai/agent';
+import { localReply, matchConcepts } from '../../lib/ai/local-coach';
 import { parseReply, type Segment } from '../../lib/ai/tags';
 import { puzzleStore } from '../puzzles/Puzzles';
 import type { Puzzle } from '../../lib/puzzles/categories';
 import type { TKey } from '../../i18n';
 
-interface ChatMsg { role: 'user' | 'coach'; text: string; at: number; error?: boolean }
+interface ChatMsg { role: 'user' | 'coach'; text: string; at: number; error?: boolean; topic?: string; note?: string }
 
 const loadBooks = () => bookIndex((p) => fetchGz('./data/books/', p));
+const loadKnowledge = () => knowledgeIndex((p) => fetchGz('./data/books/', p));
 const HISTORY = 14;
 
 function useBoardProps() {
@@ -55,9 +58,9 @@ export async function analyseFen(fen: string, depth = 14): Promise<AnalyseResult
  * In Arabic text, Latin runs (moves like 1.e4 e5, citations like "(Lasker, Chess Strategy, 1915)") are
  * isolated so the bidi algorithm does not scramble their order.
  */
-const LATIN = /(\([^()]*[A-Za-z][^()]*\)|[A-Za-z0-9][A-Za-z0-9+#=.\-–,:'’…/ ]*[A-Za-z0-9+#)])/g;
+const LATIN = /(\([^()\u0600-\u06FF]*[A-Za-z][^()\u0600-\u06FF]*\)|[A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ+#=.\-–,:'’…/ ]*[A-Za-z0-9À-ÿ+#)])/g;
 function Isolated({ text }: { text: string }) {
-  if (!/[\u0600-\u06FF]/.test(text)) return <>{text}</>;
+  if (!/[\u0600-\u06FF]/.test(text)) return /[A-Za-z]/.test(text) ? <bdi dir="ltr">{text}</bdi> : <>{text}</>;
   return <>{text.split(LATIN).map((p, i) => (i % 2 ? <bdi key={i} dir="ltr">{p}</bdi> : <Fragment key={i}>{p}</Fragment>))}</>;
 }
 
@@ -189,7 +192,7 @@ function LinkSeg({ seg }: { seg: Extract<Segment, { kind: 'link' }> }) {
   );
 }
 
-function CoachReply({ text }: { text: string }) {
+function CoachReply({ text, onAsk }: { text: string; onAsk: (q: string) => void }) {
   const { t } = useApp();
   const segs = useMemo(() => parseReply(text), [text]);
   return (
@@ -201,6 +204,7 @@ function CoachReply({ text }: { text: string }) {
           case 'line': return <LineSeg key={i} seg={s} />;
           case 'puzzles': return <PuzzlesSeg key={i} seg={s} />;
           case 'link': return <LinkSeg key={i} seg={s} />;
+          case 'ask': return <button key={i} className="ch-chip ch-ask" onClick={() => onAsk(s.q)} data-testid="ch-ask">{s.q} ›</button>;
           case 'invalid': return <div key={i} className="small muted">{t('ch_badPos')}</div>;
         }
       })}
@@ -225,12 +229,13 @@ export function CoachChat({ id }: { id: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [cfg] = useState<AiConfig>(() => loadAiConfig());
   const [books, setBooks] = useState<BookIndex | null>(null);
+  const [kn, setKn] = useState<KnowledgeIndex | null>(null);
   const [showInfo, setShowInfo] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const key = 'chat:' + id;
-  const hasKey = !!cfg.apiKey || cfg.provider === 'openai';
+  const hasKey = !needsKey(cfg.provider) || !!cfg.apiKey;
 
-  useEffect(() => { getSetting<ChatMsg[]>(key, []).then(setMsgs); loadBooks().then(setBooks).catch(() => {}); }, [key]);
+  useEffect(() => { getSetting<ChatMsg[]>(key, []).then(setMsgs); loadBooks().then(setBooks).catch(() => {}); loadKnowledge().then(setKn).catch(() => {}); }, [key]);
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [msgs.length, busy]);
 
   const save = (m: ChatMsg[]) => { setMsgs(m); setSetting(key, m.slice(-200)); };
@@ -242,14 +247,38 @@ export function CoachChat({ id }: { id: string }) {
     save(withQ);
     setInput('');
     setBusy(t('ch_thinking'));
+    const lastTopic = [...base].reverse().find((m) => m.role === 'coach' && m.topic)?.topic;
+    const offline = async (note?: string) => {
+      const kx = await loadKnowledge();
+      const r = await localReply({ question: q, lang: L, coach, stats: coachGameStats(id), kx, lastTopic, analyse: (f) => analyseFen(f) });
+      save([...withQ, { role: 'coach', text: r.text, at: Date.now(), topic: r.topic, note }]);
+    };
     try {
-      const [ix, pr] = await Promise.all([loadBooks(), getPuzzleRating().catch(() => null)]);
-      const system = buildSystemPrompt({
+      if (cfg.provider === 'local') { await offline(); return; }
+      const [ix, kx, pr] = await Promise.all([loadBooks(), loadKnowledge(), getPuzzleRating().catch(() => null)]);
+      let system = buildSystemPrompt({
         coach, stats: coachGameStats(id), lang: L, userName: profile?.name, userRating: profile?.rating ?? null,
         puzzleRating: pr ? Math.round(pr.rating) : null, books: ix.data.books,
+        network: { concepts: kx.data.concepts.length, refs: kx.data.refs.length, coachRefs: kx.data.refs.filter((r) => r.coaches.includes(id)) },
       });
       const history: Msg[] = withQ.filter((m) => !m.error).slice(-HISTORY).map((m) => m.role === 'user' ? { role: 'user', content: m.text } : { role: 'assistant', content: m.text });
-      const answer = await runTurn({ cfg, http: await http(), system, history, tools: { books: loadBooks, analyse: (f) => analyseFen(f) }, onStatus: setBusy, lang: L });
+      if (cfg.provider === 'free') {
+        // the free service may not support tools: give it the matching concepts up front instead
+        const ctx = matchConcepts(q, kx, 2).map((m) => kx.view(m.c));
+        system += `
+
+TOOLS ARE NOT AVAILABLE in this mode. Here are the concepts from the knowledge network that match the question (use them as your main source and name their source books):
+${JSON.stringify(ctx)}`;
+        try {
+          const r = await chat(cfg, await http(), system, history, []);
+          if (!r.text.trim()) throw new AiError('server', 'empty');
+          save([...withQ, { role: 'coach', text: r.text.trim(), at: Date.now() }]);
+        } catch {
+          await offline(t('ch_freeFallback'));
+        }
+        return;
+      }
+      const answer = await runTurn({ cfg, http: await http(), system, history, tools: { books: loadBooks, knowledge: loadKnowledge, analyse: (f) => analyseFen(f) }, onStatus: setBusy, lang: L });
       save([...withQ, { role: 'coach', text: answer, at: Date.now() }]);
     } catch (e) {
       save([...withQ, { role: 'coach', text: errorText(e, t), at: Date.now(), error: true }]);
@@ -274,7 +303,7 @@ export function CoachChat({ id }: { id: string }) {
         <CoachPortrait coach={coach} size={48} round />
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ margin: 0 }}>{coach.name[L]}</h2>
-          <div className="tiny muted">{t('ch_online')} · {PROVIDERS[cfg.provider].label}</div>
+          <div className="tiny muted" data-testid="ch-mode">{cfg.provider === 'local' ? t('ch_offline') : `${t('ch_online')} · ${t(('ai_p_' + cfg.provider) as TKey)}`}</div>
         </div>
         <button className="btn small" onClick={() => go({ name: 'aiSettings' })} aria-label={t('ch_settings')} data-testid="ch-settings">⚙</button>
         {msgs.length > 0 && <button className="btn small" onClick={clear} aria-label={t('ch_clear')} title={t('ch_clear')} data-testid="ch-clear">🗑</button>}
@@ -283,11 +312,19 @@ export function CoachChat({ id }: { id: string }) {
       <button className="ch-info-toggle small" onClick={() => setShowInfo(!showInfo)} data-testid="ch-info">ⓘ {t('ch_honest')}</button>
       {showInfo && (
         <div className="card small" data-testid="ch-info-body">
-          <p>{t('ch_honestBody', { name: coach.name[L], n: books?.data.books.length ?? 7 })}</p>
-          {books && <>
-            <b>{t('ch_books')}</b>
-            <ul className="bullets" dir="ltr">{books.data.books.map((b) => <li key={b.id}>{b.author}, <i>{b.title}</i> ({b.year})</li>)}</ul>
-          </>}
+          <p>{t('ch_honestBody', { name: coach.name[L], n: books?.data.books.length ?? 7, c: kn?.data.concepts.length ?? 150, r: kn?.data.refs.length ?? 220 })}</p>
+          {kn && (
+            <details data-testid="ch-network">
+              <summary>{t('ch_network', { c: kn.data.concepts.length, r: kn.data.refs.length })}</summary>
+              <ul className="bullets" dir="ltr">{[...kn.data.refs].sort((a, b) => a.author.localeCompare(b.author)).map((b) => <li key={b.id}>{b.author}, <i>{b.title}</i> ({b.year})</li>)}</ul>
+            </details>
+          )}
+          {books && (
+            <details>
+              <summary>{t('ch_books')}</summary>
+              <ul className="bullets" dir="ltr">{books.data.books.map((b) => <li key={b.id}>{b.author}, <i>{b.title}</i> ({b.year})</li>)}</ul>
+            </details>
+          )}
           <p className="muted">{t('ch_privacy')}</p>
         </div>
       )}
@@ -308,7 +345,8 @@ export function CoachChat({ id }: { id: string }) {
         )}
         {msgs.map((m, i) => (
           <div key={i} className={'ch-msg ' + (m.role === 'user' ? 'me' : 'coach') + (m.error ? ' err' : '')} data-testid={m.role === 'user' ? 'ch-user' : 'ch-coach'}>
-            {m.role === 'coach' && !m.error ? <CoachReply text={m.text} /> : <p>{m.text}</p>}
+            {m.note && <div className="tiny muted">{m.note}</div>}
+            {m.role === 'coach' && !m.error ? <CoachReply text={m.text} onAsk={(q) => send(q)} /> : <p>{m.text}</p>}
             {m.error && i === msgs.length - 1 && <button className="btn small" onClick={retry}>{t('ch_retry')}</button>}
           </div>
         ))}
@@ -337,7 +375,7 @@ export function AiSettings() {
 
   const setProvider = (v: string) => {
     const id = v as ProviderId;
-    setC({ ...c, provider: id, model: PROVIDERS[id].model || c.model, baseUrl: id === 'openai' ? (c.provider === 'openai' ? c.baseUrl : PROVIDERS.openai.baseUrl) : PROVIDERS[id].baseUrl });
+    setC({ ...c, provider: id, model: PROVIDERS[id].model || (id === 'openai' ? c.model : ''), baseUrl: id === 'openai' ? (c.provider === 'openai' ? c.baseUrl : PROVIDERS.openai.baseUrl) : PROVIDERS[id].baseUrl });
     setModels([]); setMsg('');
   };
   const save = () => { saveAiConfig({ ...c, apiKey: c.apiKey.trim(), model: c.model.trim(), baseUrl: c.baseUrl.trim() }); toast(t('ai_saved')); };
@@ -358,9 +396,17 @@ export function AiSettings() {
       <div className="card">
         <h2>{t('ai_title')}</h2>
         <p className="small muted">{t('ch_privacy')}</p>
-        <div className="field"><span>{t('ai_provider')}</span>
-          <Segmented value={c.provider} onChange={setProvider} options={[['gemini', 'Gemini'], ['anthropic', 'Claude'], ['openai', 'OpenAI-compatible']]} />
+        <div className="field col"><span>{t('ai_provider')}</span>
+          <div className="ai-providers" role="radiogroup">
+            {(['local', 'free', 'gemini', 'anthropic', 'openai'] as ProviderId[]).map((id) => (
+              <label key={id} className={'ai-prov' + (c.provider === id ? ' on' : '')} data-testid={'ai-p-' + id}>
+                <input type="radio" name="ai-provider" checked={c.provider === id} onChange={() => setProvider(id)} />
+                <span><b>{t(('ai_p_' + id) as TKey)}</b><br /><span className="tiny muted">{t(('ai_pd_' + id) as TKey)}</span></span>
+              </label>
+            ))}
+          </div>
         </div>
+        {c.provider === 'free' && <p className="small">{t('ai_freeNote')}</p>}
         {c.provider === 'gemini' && <p className="small">{t('ai_geminiNote')}</p>}
         {p.keyUrl && <p className="small">{t('ai_getKey')} <span dir="ltr" className="selectable">{p.keyUrl}</span></p>}
         {c.provider === 'openai' && (
@@ -368,6 +414,7 @@ export function AiSettings() {
             <input dir="ltr" value={c.baseUrl} onChange={(e) => setC({ ...c, baseUrl: e.target.value })} data-testid="ai-base" />
           </label>
         )}
+        {c.provider !== 'local' && c.provider !== 'free' && <>
         <label className="field col"><span>{t('ai_key')}</span>
           <div className="row gap">
             <input dir="ltr" type={show ? 'text' : 'password'} value={c.apiKey} onChange={(e) => setC({ ...c, apiKey: e.target.value })} autoComplete="off" style={{ flex: 1 }} data-testid="ai-key" />
@@ -384,10 +431,11 @@ export function AiSettings() {
             {models.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         )}
+        </>}
         <div className="row gap wrap" style={{ marginTop: 10 }}>
           <button className="btn primary" onClick={save} data-testid="ai-save">{t('ai_save')}</button>
-          <button className="btn" onClick={test} disabled={busy} data-testid="ai-test">{t('ai_test')}</button>
-          <button className="btn" onClick={fetchModels} disabled={busy}>{t('ai_fetchModels')}</button>
+          {c.provider !== 'local' && <button className="btn" onClick={test} disabled={busy} data-testid="ai-test">{t('ai_test')}</button>}
+          {c.provider !== 'local' && c.provider !== 'free' && <button className="btn" onClick={fetchModels} disabled={busy}>{t('ai_fetchModels')}</button>}
           {c.apiKey && <button className="btn" onClick={() => { const n = { ...c, apiKey: '' }; setC(n); saveAiConfig(n); }}>{t('ai_removeKey')}</button>}
         </div>
         {msg && <p className="small" data-testid="ai-msg">{msg}</p>}

@@ -20,6 +20,7 @@ const ALLOWED = [
   /^https:\/\/tinyurl\.com\/y2uuvskb$/,
   /^http:\/\/bit\.ly\/2kdckMn$/,
   // Optional online coach chat (off until the user adds their own API key; see DATA_SOURCES.md):
+  /^https:\/\/text\.pollinations\.ai\/openai\/$/,
   /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/openai\/$/,
   /^https:\/\/api\.anthropic\.com\/v1\/$/,
   /^https:\/\/api\.openai\.com\/v1\/$/,

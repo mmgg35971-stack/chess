@@ -11,9 +11,10 @@ export type Segment =
   | { kind: 'line'; fen: string; sans: string[]; fens: string[]; caption: string; bad?: string }
   | { kind: 'puzzles'; theme: string; n: number }
   | { kind: 'link'; type: 'lesson' | 'topic' | 'opening'; id: string }
+  | { kind: 'ask'; q: string }
   | { kind: 'invalid'; tag: string; reason: string };
 
-const TAG = /\[\[\s*(board|line|puzzles|lesson|topic|opening)\b([^\]]*)\]\]/g;
+const TAG = /\[\[\s*(board|line|puzzles|lesson|topic|opening|ask)\b([^\]]*)\]\]/g;
 const ATTR = /(\w+)\s*=\s*(?:"([^"]*)"|'([^']*)'|“([^”]*)”)/g;
 
 export function attrs(s: string): Record<string, string> {
@@ -91,6 +92,8 @@ export function parseReply(text: string): Segment[] {
       out.push({ kind: 'line', fen, sans, fens, caption: a.caption ?? '', bad });
     } else if (kind === 'puzzles') {
       out.push({ kind: 'puzzles', theme: a.theme || a.cat || 'c_tactics', n: Math.min(6, Math.max(1, parseInt(a.n || '3', 10) || 3)) });
+    } else if (kind === 'ask') {
+      if (a.q) out.push({ kind: 'ask', q: a.q });
     } else {
       if (a.id) out.push({ kind: 'link', type: kind as 'lesson' | 'topic' | 'opening', id: a.id });
     }

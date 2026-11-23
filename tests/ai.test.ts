@@ -8,9 +8,14 @@ import { chat, AiError, type AiConfig, type Http } from '../src/lib/ai/client';
 import { buildSystemPrompt, runTurn, runTool, puzzleQuery } from '../src/lib/ai/agent';
 import { COACHES, coachGameStats } from '../src/lib/coach/coaches';
 import { PuzzleStore } from '../src/lib/puzzles/store';
+import { KnowledgeIndex, type KnowledgeFile } from '../src/lib/ai/knowledge';
+import { localReply, matchConcepts, normAr } from '../src/lib/ai/local-coach';
+import { loadAiConfig, DEFAULT_AI } from '../src/lib/ai/client';
 
 const library = JSON.parse(gunzipSync(readFileSync('public/data/books/books.pz')).toString()) as BookFile;
 const index = new BookIndex(library);
+const network = JSON.parse(gunzipSync(readFileSync('public/data/books/knowledge.pz')).toString()) as KnowledgeFile;
+const kindex = new KnowledgeIndex(network);
 
 describe('book library', () => {
   it('ships the public-domain books with their sources', () => {
@@ -39,6 +44,127 @@ describe('book library', () => {
     const opp = index.search('opposition of the kings pawn ending', 3);
     expect(opp.some((p) => /opposition/i.test(p.text))).toBe(true);
     expect(index.search('Morphy Paris Duke Brunswick', 2, 'history')[0].book.id).toBe('edge-morphy');
+  });
+});
+
+describe('knowledge network', () => {
+  it('links every concept to known references and related concepts', () => {
+    expect(network.refs.length).toBeGreaterThanOrEqual(200);
+    expect(network.concepts.length).toBeGreaterThanOrEqual(150);
+    const refIds = new Set(network.refs.map((r) => r.id));
+    const ids = new Set(network.concepts.map((c) => c.id));
+    for (const c of network.concepts) {
+      expect(c.refs.length, c.id).toBeGreaterThan(0);
+      for (const r of c.refs) expect(refIds.has(r), `${c.id} → ${r}`).toBe(true);
+      for (const r of c.rel) expect(ids.has(r), `${c.id} ~ ${r}`).toBe(true);
+      expect(c.summary.length, c.id).toBeGreaterThan(60);
+    }
+    // every reference is used by at least one concept
+    for (const r of network.refs) expect(network.concepts.some((c) => c.refs.includes(r.id)), r.id).toBe(true);
+  });
+
+  it('has only legal example positions', () => {
+    for (const c of network.concepts) for (const e of c.examples) expect(() => new Chess(e.fen!), c.id).not.toThrow();
+    expect(network.concepts.flatMap((c) => c.examples).filter((e) => e.claim).length).toBeGreaterThan(20);
+  });
+
+  it('finds the right concept for a question', () => {
+    expect(kindex.search('Lucena bridge rook ending', 1)[0].id).toBe('lucena');
+    expect(kindex.search('isolated queen pawn plans', 1)[0].id).toBe('isolated-pawn');
+    expect(kindex.search('bishop sacrifice h7 knight g5', 2).map((c) => c.id)).toContain('greek-gift');
+    expect(kindex.search('candidate moves tree of analysis Kotov', 2).map((c) => c.id)).toContain('candidate-moves');
+    expect(kindex.search('King\'s Indian Mar del Plata f5 attack', 2).map((c) => c.id)).toContain('kid-ideas');
+    expect(kindex.searchRefs('Nimzowitsch blockade', 2).map((r) => r.id)).toContain('nimzowitsch-blockade');
+  });
+
+  it('gives the model the idea, its sources and its links', async () => {
+    const out = JSON.parse(await runTool('search_knowledge', { query: 'opposition king pawn' }, tools));
+    const c = out.concepts[0];
+    expect(c.id).toBe('opposition');
+    expect(c.sources.some((s: string) => /Dvoretsky/.test(s))).toBe(true);
+    expect(c.related.map((r: any) => r.id)).toContain('key-squares');
+    expect(c.examples[0].verified).toMatch(/Stockfish-checked/);
+    const byId = JSON.parse(await runTool('search_knowledge', { id: 'key-squares' }, tools));
+    expect(byId.concepts[0].title).toBe('Key squares');
+    expect(JSON.parse(await runTool('search_knowledge', { id: 'nope' }, tools)).error).toBeTruthy();
+  });
+});
+
+describe('offline coach (no key, no internet)', () => {
+  const carlsen = COACHES.find((c) => c.id === 'carlsen')!;
+  const tal = COACHES.find((c) => c.id === 'tal')!;
+  const base = { lang: 'ar' as const, coach: carlsen, stats: coachGameStats('carlsen'), kx: kindex };
+
+  it('is the default and needs no key', () => {
+    expect(DEFAULT_AI.provider).toBe('local');
+    expect(loadAiConfig().provider).toBe('local'); // nothing stored
+  });
+
+  it('has Arabic text for every concept', () => {
+    for (const c of network.concepts) {
+      expect(c.ar?.summary, c.id).toBeTruthy();
+      expect(c.ar!.aka.length, c.id).toBeGreaterThan(0);
+      expect(c.ar!.notes.length, c.id).toBe(c.examples.length);
+    }
+  });
+
+  it('understands Arabic questions', () => {
+    const top = (q: string) => matchConcepts(q, kindex)[0]?.c.id;
+    expect(normAr('الأُسْتاذ إلى')).toBe('الاستاذ الي');
+    expect(top('اشرح لي المعارضة في نهايات البيادق بمثال')).toBe('opposition');
+    expect(top('شنو البيدق المعزول؟')).toBe('isolated-pawn');
+    expect(top('وضعية لوسينا')).toBe('lucena');
+    expect(top('متى أضحي بالفيل على h7')).toBe('greek-gift');
+    expect(top('أعطني ألغازًا عن الشوكة')).toBe('fork');
+    expect(top('الهندي الملكي')).toBe('kid-ideas');
+    expect(top('كيف أخطط في وسط اللعب؟')).toBe('plan-making');
+    expect(top('متى أبادل القطع')).toBe('exchanges');
+    expect(top('Lucena position')).toBe('lucena');
+    expect(matchConcepts('شرايك بالطقس اليوم', kindex)).toHaveLength(0);
+  });
+
+  it('explains a concept with a board, sources, puzzles, a lesson link and follow-ups', async () => {
+    const r = await localReply({ ...base, question: 'اشرح لي المعارضة' });
+    expect(r.topic).toBe('opposition');
+    const segs = parseReply(r.text);
+    const kinds = segs.map((x) => x.kind);
+    expect(kinds).toContain('board');
+    expect(kinds).toContain('puzzles');
+    expect(kinds).toContain('ask');
+    expect(segs.find((x) => x.kind === 'link')).toMatchObject({ type: 'lesson', id: 'opposition-1' });
+    expect(r.text).toMatch(/Dvoretsky|Capablanca/);
+    expect(r.text).toMatch(/المعارضة/);
+    expect(segs.every((x) => x.kind !== 'invalid')).toBe(true);
+  });
+
+  it('continues the same topic on "tell me more"', async () => {
+    const r = await localReply({ ...base, question: 'اشرح أكثر', lastTopic: 'lucena' });
+    expect(r.topic).toBe('lucena');
+    expect(r.text).toMatch(/نكمل/);
+  });
+
+  it('adds the coach\'s flavour and own repertoire', async () => {
+    const t = await localReply({ ...base, coach: tal, stats: coachGameStats('tal'), question: 'متى أضحي بالفيل على h7' });
+    expect(t.text).toMatch(/تال/);
+    const rep = await localReply({ ...base, question: 'ما الافتتاح الذي تنصحني به بالأسود؟' });
+    expect(rep.topic).toBe('repertoire');
+    expect(parseReply(rep.text).filter((x) => x.kind === 'line').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('analyses a pasted FEN with the engine', async () => {
+    const r = await localReply({ ...base, question: 'حلل هذه الوضعية 6k1/5ppp/8/8/8/8/q4PPP/4R1K1 w - - 0 1', analyse: async () => ({ eval: '#1', best: [['Re8#']], sideToMove: 'w' }) });
+    expect(r.text).toMatch(/Stockfish/);
+    expect(r.text).toMatch(/كش مات بالقوة/);
+    expect(parseReply(r.text).map((x) => x.kind)).toEqual(expect.arrayContaining(['board', 'line']));
+    const bad = await localReply({ ...base, question: '8/8/8/8/8/8/8/8 w - - 0 1' });
+    expect(bad.text).toMatch(/غير صالحة/);
+  });
+
+  it('greets, talks about the coach, and offers topics when it does not understand', async () => {
+    expect((await localReply({ ...base, question: 'من انت؟' })).text).toMatch(/كارلسن/);
+    const hi = await localReply({ ...base, question: 'مرحبا' });
+    expect(parseReply(hi.text).filter((x) => x.kind === 'ask').length).toBeGreaterThanOrEqual(3);
+    expect((await localReply({ ...base, question: 'شرايك بالطقس' })).text).toMatch(/ما فهمت/);
   });
 });
 
@@ -85,7 +211,9 @@ describe('coach persona prompt', () => {
     const p = buildSystemPrompt({ coach: tal, stats: coachGameStats('tal'), lang: 'ar', userRating: 1500, books: library.books });
     expect(p).toContain('you are NOT Mikhail Tal');
     expect(p).toContain('Capablanca');
-    expect(p).toMatch(/NOT analysed 200 books/);
+    expect(p).toMatch(/call search_knowledge FIRST/);
+    expect(p).toMatch(/does not contain their text/);
+    expect(p).toMatch(/never invent page numbers/);
     expect(p).toMatch(/Reply in Arabic/);
     expect(p).toMatch(/between formal and casual/);
     expect(p).toContain('[[puzzles theme=');
@@ -104,7 +232,7 @@ function fakeHttp(replies: unknown[], reqs: Req[] = []): Http {
 }
 const gemini: AiConfig = { provider: 'gemini', apiKey: 'k', model: 'gemini-flash-latest', baseUrl: '' };
 const claude: AiConfig = { provider: 'anthropic', apiKey: 'k', model: 'claude-sonnet-5-5', baseUrl: '' };
-const tools = { books: async () => index, analyse: async () => ({ eval: '+0.30', best: [['Nf3', 'Nc6']], sideToMove: 'w' as const }) };
+const tools = { books: async () => index, knowledge: async () => kindex, analyse: async () => ({ eval: '+0.30', best: [['Nf3', 'Nc6']], sideToMove: 'w' as const }) };
 
 describe('chat clients', () => {
   it('runs a tool round-trip on the OpenAI-compatible (Gemini) API and returns the final text', async () => {
@@ -118,7 +246,7 @@ describe('chat clients', () => {
     expect(out).toMatch(/Capablanca/);
     expect(reqs[0].url).toBe('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
     expect(reqs[0].headers.authorization).toBe('Bearer k');
-    expect(reqs[0].body.tools.map((t: any) => t.function.name)).toEqual(['search_books', 'analyse_position']);
+    expect(reqs[0].body.tools.map((t: any) => t.function.name)).toEqual(['search_knowledge', 'search_books', 'analyse_position']);
     const second = reqs[1].body.messages;
     expect(second[0]).toEqual({ role: 'system', content: 'sys' });
     // the provider's tool call goes back unchanged (Gemini needs its thought signature)

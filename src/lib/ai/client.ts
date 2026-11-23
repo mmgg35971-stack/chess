@@ -2,7 +2,7 @@
 // it is kept on the device (localStorage) and sent only to the provider they chose.
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
-export type ProviderId = 'gemini' | 'anthropic' | 'openai';
+export type ProviderId = 'local' | 'free' | 'gemini' | 'anthropic' | 'openai';
 
 export interface AiConfig {
   provider: ProviderId;
@@ -13,13 +13,19 @@ export interface AiConfig {
 }
 
 export const PROVIDERS: Record<ProviderId, { label: string; baseUrl: string; model: string; keyUrl: string }> = {
+  // the offline coach on the device: no key, no internet (src/lib/ai/local-coach.ts)
+  local: { label: 'Offline coach', baseUrl: '', model: '', keyUrl: '' },
+  // Pollinations' anonymous OpenAI-compatible endpoint: no key; a free third-party service that may change or stop
+  free: { label: 'Free online model', baseUrl: 'https://text.pollinations.ai/openai/', model: 'openai', keyUrl: '' },
   // Google's OpenAI-compatible endpoint; "gemini-flash-latest" follows Google's current Flash model.
   gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-flash-latest', keyUrl: 'https://aistudio.google.com/apikey' },
   anthropic: { label: 'Anthropic Claude', baseUrl: 'https://api.anthropic.com/v1/', model: 'claude-sonnet-5-5', keyUrl: 'https://console.anthropic.com/settings/keys' },
   openai: { label: 'OpenAI-compatible', baseUrl: 'https://api.openai.com/v1/', model: '', keyUrl: '' },
 };
 
-export const DEFAULT_AI: AiConfig = { provider: 'gemini', apiKey: '', model: PROVIDERS.gemini.model, baseUrl: PROVIDERS.gemini.baseUrl };
+export const DEFAULT_AI: AiConfig = { provider: 'local', apiKey: '', model: '', baseUrl: '' };
+/** Providers that work without any API key. */
+export const needsKey = (p: ProviderId) => p === 'gemini' || p === 'anthropic';
 
 export interface ToolDef { name: string; description: string; parameters: Record<string, unknown> }
 export interface ToolCall { id: string; name: string; args: Record<string, unknown>; /** provider's own object, sent back unchanged (Gemini keeps its thought signature there) */ raw?: unknown }
@@ -78,8 +84,8 @@ function parseArgs(s: unknown): Record<string, unknown> {
 }
 
 async function openAiChat(cfg: AiConfig, http: Http, system: string, msgs: Msg[], tools: ToolDef[]): Promise<Reply> {
-  const base = cfg.provider === 'gemini' ? PROVIDERS.gemini.baseUrl : cfg.baseUrl;
-  const data = await call(http, join(base, 'chat/completions'), cfg.apiKey ? { authorization: 'Bearer ' + cfg.apiKey } : {}, {
+  const base = cfg.provider === 'gemini' || cfg.provider === 'free' ? PROVIDERS[cfg.provider].baseUrl : cfg.baseUrl;
+  const data = await call(http, join(base, 'chat/completions'), cfg.apiKey && cfg.provider !== 'free' ? { authorization: 'Bearer ' + cfg.apiKey } : {}, {
     model: cfg.model,
     messages: toOpenAi(system, msgs),
     ...(tools.length ? { tools: tools.map((t) => ({ type: 'function', function: t })) } : {}),
@@ -135,7 +141,9 @@ async function anthropicChat(cfg: AiConfig, http: Http, system: string, msgs: Ms
 }
 
 export function chat(cfg: AiConfig, http: Http, system: string, msgs: Msg[], tools: ToolDef[]): Promise<Reply> {
-  if (!cfg.apiKey && cfg.provider !== 'openai') return Promise.reject(new AiError('nokey', 'no api key'));
+  if (cfg.provider === 'local') return Promise.reject(new AiError('model', 'the offline coach does not use a model'));
+  if (!cfg.apiKey && needsKey(cfg.provider)) return Promise.reject(new AiError('nokey', 'no api key'));
+  if (cfg.provider === 'free') cfg = { ...cfg, model: cfg.model || PROVIDERS.free.model };
   if (!cfg.model) return Promise.reject(new AiError('model', 'no model'));
   return cfg.provider === 'anthropic' ? anthropicChat(cfg, http, system, msgs, tools) : openAiChat(cfg, http, system, msgs, tools);
 }
@@ -146,7 +154,7 @@ export async function listModels(cfg: AiConfig, http: Http): Promise<string[]> {
     const d = await call(http, join(PROVIDERS.anthropic.baseUrl, 'models'), { 'x-api-key': cfg.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, undefined, 'GET') as { data?: { id: string }[] };
     return (d.data ?? []).map((m) => m.id);
   }
-  const base = cfg.provider === 'gemini' ? PROVIDERS.gemini.baseUrl : cfg.baseUrl;
+  const base = cfg.provider === 'gemini' || cfg.provider === 'free' ? PROVIDERS[cfg.provider].baseUrl : cfg.baseUrl;
   const d = await call(http, join(base, 'models'), cfg.apiKey ? { authorization: 'Bearer ' + cfg.apiKey } : {}, undefined, 'GET') as { data?: { id: string }[] };
   return (d.data ?? []).map((m) => m.id.replace(/^models\//, '')).sort();
 }
@@ -172,7 +180,11 @@ export async function defaultHttp(): Promise<Http> {
 const KEY = 'cga.ai';
 /** The AI settings live in localStorage, outside IndexedDB, so backups never contain the API key. */
 export function loadAiConfig(): AiConfig {
-  try { return { ...DEFAULT_AI, ...(JSON.parse(localStorage.getItem(KEY) || '{}') as Partial<AiConfig>) }; } catch { return { ...DEFAULT_AI }; }
+  try {
+    const c = { ...DEFAULT_AI, ...(JSON.parse(localStorage.getItem(KEY) || '{}') as Partial<AiConfig>) };
+    // a key-based provider without a key falls back to the offline coach, so the chat always works
+    return c.provider in PROVIDERS && !(needsKey(c.provider) && !c.apiKey) ? c : { ...DEFAULT_AI };
+  } catch { return { ...DEFAULT_AI }; }
 }
 export function saveAiConfig(c: AiConfig) {
   try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* storage unavailable */ }

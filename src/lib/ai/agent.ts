@@ -8,17 +8,31 @@ import { OPENINGS } from '../academy/defs';
 import { THEMES } from '../puzzles/explain';
 import { INDEXED_CATEGORIES } from '../puzzles/categories';
 import type { BookIndex, BookMeta } from './books';
+import type { KnowledgeIndex, KRef } from './knowledge';
 import { chat, type AiConfig, type Http, type Msg, type ToolDef } from './client';
 import { normalizeFen, sanTokens } from './tags';
 
 export interface AnalyseResult { eval: string; best: string[][]; sideToMove: 'w' | 'b' }
 export interface AgentTools {
   books: () => Promise<BookIndex>;
+  knowledge: () => Promise<KnowledgeIndex>;
   /** Stockfish on the device; null when the engine is unavailable */
   analyse?: (fen: string) => Promise<AnalyseResult | null>;
 }
 
 export const TOOL_DEFS: ToolDef[] = [
+  {
+    name: 'search_knowledge',
+    description: 'Search the coach knowledge network: ~150 chess concepts (openings, strategy, tactics, attack/defence, calculation, endgames, coach styles), each summarising the ideas of the reference books it comes from (≈220 classic and modern chess books, listed as sources), with related concepts, Stockfish-checked example positions and a puzzle theme. Query in ENGLISH keywords, or pass id to open a concept (e.g. a related one).',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'English keywords, e.g. "isolated queen pawn plan" or "Lucena bridge"' },
+        id: { type: 'string', description: 'concept id to open directly (from "related")' },
+        area: { type: 'string', enum: ['opening', 'strategy', 'tactics', 'attack', 'defence', 'calculation', 'endgame', 'psychology', 'training', 'style'], description: 'optional area filter' },
+      },
+    },
+  },
   {
     name: 'search_books',
     description: 'Search the app library of public-domain classic chess books (full text). Returns the best-matching passages with book, author, year and chapter. Write the query in ENGLISH keywords (the books are English; old ones use descriptive notation like P-K4, Kt-KB3).',
@@ -55,6 +69,8 @@ export interface PromptInput {
   userRating?: number | null;
   puzzleRating?: number | null;
   books: BookMeta[];
+  /** size of the knowledge network and the reference works by or about this coach */
+  network?: { concepts: number; refs: number; coachRefs: KRef[] };
 }
 
 export function buildSystemPrompt(p: PromptInput): string {
@@ -85,11 +101,14 @@ THE STUDENT: ${p.userName ? `name ${p.userName}; ` : ''}${p.userRating ? `rating
 
 STYLE: ${lang} This is a phone chat: short paragraphs, usually under 180 words unless the student asks for depth. Explain the WHY (plans, ideas, what the opponent wants and how to stop it), give one concrete example when it helps, and end with a small practical tip or question when natural. Stay on chess; steer other topics back politely.
 
-KNOWLEDGE — be honest about it:
-- The app has a searchable library of these public-domain books (full text):
+KNOWLEDGE — your two sources, and honesty about them:
+1. The knowledge network (search_knowledge): ${p.network ? `${p.network.concepts} concepts built from the ideas of ${p.network.refs} reference books` : 'concepts built from the ideas of about 220 reference books'} (Nimzowitsch, Capablanca, Dvoretsky, Silman, Kotov, Aagaard, Shereshevsky, Vuković, Nunn, Müller & Lamprecht, de la Villa, opening monographs, game collections…). Each concept is a summary in the app's own words of what those books teach, with the books named as sources. For any question about ideas, plans, structures, openings, tactics, endgames, thinking or training, call search_knowledge FIRST, open related concepts (by id) when useful, and build your answer on it. Name the source books naturally ("this is Nimzowitsch's blockade idea from My System", "Dvoretsky lists the Lucena as must-know").
+2. Full text of public-domain classics (search_books) — for exact explanations or historical games from:
 ${bookList}
-- For questions about ideas, plans, endgames, openings or chess history, call search_books first (English keywords) and build your answer on the passages, citing like (Capablanca, Chess Fundamentals, 1921). Paraphrase in the student's language; quote at most one short sentence. Old books use descriptive notation (P-K4 = e4 for White, Kt = knight, Q side/K side, ranks counted from each player's side) — convert to algebraic.
-- Anything else comes from your general chess knowledge; say so briefly when it matters (e.g. "this is general theory, not from the app library"). Never claim to have read or analysed books that are not in the list above (e.g. you have NOT analysed 200 books), and never present modern copyrighted books' text.
+   Old books use descriptive notation (P-K4 = e4 for White, Kt = knight, ranks counted from each player's side) — convert to algebraic. Quote at most one short sentence.
+- The network summarises the books' ideas; it does not contain their text. If the student asks, say so plainly: the app's knowledge was compiled from the ideas these books are known for, and the full texts in the app are only the public-domain classics. Never quote or reproduce modern books, never invent page numbers, chapters or quotes.
+- If neither source covers something, answer from general chess knowledge and say it is general theory.${p.network?.coachRefs.length ? `
+- Books by or about ${name} in the network: ${p.network.coachRefs.map((r) => `${r.author}, "${r.title}" (${r.year})`).join('; ')}.` : ''}
 - Before you state what is best or winning in a concrete position, check it with analyse_position. If the check disagrees with you, trust Stockfish and say so.
 
 SHOWING THINGS (the app renders these tags; put each on its own line):
@@ -100,11 +119,25 @@ SHOWING THINGS (the app renders these tags; put each on its own line):
 Use at most 3 boards/lines per reply. Do not use Markdown tables or headings; bold with **…** is fine.`;
 }
 
-const STATUS_AR: Record<string, string> = { search_books: 'يبحث في الكتب…', analyse_position: 'يتحقق بـ Stockfish…' };
-const STATUS_EN: Record<string, string> = { search_books: 'Searching the books…', analyse_position: 'Checking with Stockfish…' };
+const STATUS_AR: Record<string, string> = { search_knowledge: 'يراجع شبكة المعرفة…', search_books: 'يبحث في الكتب…', analyse_position: 'يتحقق بـ Stockfish…' };
+const STATUS_EN: Record<string, string> = { search_knowledge: 'Checking the knowledge network…', search_books: 'Searching the books…', analyse_position: 'Checking with Stockfish…' };
 export const toolStatus = (name: string, lang: Lang) => (lang === 'ar' ? STATUS_AR : STATUS_EN)[name] ?? L(lang, 'يفكر…', 'Thinking…');
 
 export async function runTool(name: string, args: Record<string, unknown>, tools: AgentTools): Promise<string> {
+  if (name === 'search_knowledge') {
+    const kx = await tools.knowledge();
+    if (typeof args.id === 'string' && args.id) {
+      const c = kx.byId.get(args.id);
+      return JSON.stringify(c ? { concepts: [kx.view(c)] } : { error: `No concept "${args.id}".` });
+    }
+    const q = String(args.query ?? '').slice(0, 200);
+    const area = typeof args.area === 'string' ? args.area : undefined;
+    let res = kx.search(q, 3, area);
+    if (!res.length && area) res = kx.search(q, 3);
+    const refs = kx.searchRefs(q, 3).map((r) => ({ book: `${r.author}, ${r.title} (${r.year})`, ideas: r.ideas }));
+    if (!res.length && !refs.length) return JSON.stringify({ concepts: [], note: 'Nothing matched. Try other English keywords or search_books.' });
+    return JSON.stringify({ concepts: res.map((c) => kx.view(c)), matchingBooks: refs });
+  }
   if (name === 'search_books') {
     const ix = await tools.books();
     const q = String(args.query ?? '').slice(0, 200);
@@ -182,6 +215,8 @@ const THEME_ALIASES: Record<string, string> = {
 export function puzzleQuery(theme: string): { cat: string; themes?: string[] } {
   const t = theme.trim();
   if (INDEXED_CATEGORIES.some((c) => c.id === t)) return { cat: t };
+  // Lichess marks every puzzle with its game phase; "opening" puzzles come from the first moves
+  if (/^opening$/i.test(t)) return { cat: 'c_random', themes: ['opening'] };
   const key = Object.keys(THEMES).find((k) => k.toLowerCase() === t.toLowerCase().replace(/[\s_-]+/g, ''));
   if (key) return { cat: 'c_random', themes: [key] };
   const alias = THEME_ALIASES[t.toLowerCase().replace(/[_-]+/g, ' ')];

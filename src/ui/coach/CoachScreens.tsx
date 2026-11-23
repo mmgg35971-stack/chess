@@ -121,7 +121,7 @@ export function CoachDetail({ id }: { id: string }) {
         <p className="small">{t('ch_openHint')}</p>
         <div className="row gap wrap">
           <button className="btn primary" onClick={() => go({ name: 'coachChat', id })} data-testid="coach-chat">{t('ch_open')}</button>
-          <span className="pill">{t('ch_online')}</span>
+          <span className="pill">{t('ch_offline')}</span>
         </div>
       </div>
 

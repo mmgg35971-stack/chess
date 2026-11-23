@@ -34,6 +34,9 @@ jobs:
       - name: Verify middlegame/endgame lessons with Stockfish
         run: npx tsx scripts/lessons/check-lessons.ts
 
+      - name: Build the coach knowledge network and verify its positions with Stockfish
+        run: npx tsx scripts/ai/build-knowledge.ts --verify && git diff --exit-code public/data/books/knowledge.pz
+
       - name: Build web app (fails on any external URL)
         run: npm run build
 
@@ -64,7 +67,7 @@ jobs:
           unzip -l "$APK" | grep -E "assets/public/(index.html|engine/|pieces/cburnett/wK)"
           unzip -l "$APK" | grep -q "assets/public/engine/stockfish-19-lite-single.wasm"
           # the data the app fetches must be in the APK under the exact names it asks for
-          for f in data/puzzles/index.json data/puzzles/ratings.pz data/puzzles/cats.pz data/puzzles/0.pz data/academy/index.json data/academy/sicilian.json data/books/books.pz; do
+          for f in data/puzzles/index.json data/puzzles/ratings.pz data/puzzles/cats.pz data/puzzles/0.pz data/academy/index.json data/academy/sicilian.json data/books/books.pz data/books/knowledge.pz; do
             unzip -l "$APK" | grep -q "assets/public/$f" || { echo "missing in APK: $f"; exit 1; }
           done
           echo "puzzle chunks in APK: $(unzip -l "$APK" | grep -c 'assets/public/data/puzzles/[0-9]*\.pz')"

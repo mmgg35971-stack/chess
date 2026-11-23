@@ -9,3 +9,4 @@ android/app/src/main/assets/public/
 android/local.properties
 tsconfig.tsbuildinfo
 public/data/puzzles/
+scripts/tmp/
