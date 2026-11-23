@@ -443,10 +443,11 @@ export function coachById(id: string) {
  * centipawn loss of each level matches real Lichess players of `targetRating`
  * (see DATA_SOURCES.md). `targetRating` is approximate, not a promise.
  * Measured median ACPL (self-play, 10 game sides per level, depth-10 re-analysis):
- *   L1 150 · L2 109 · L3 73 · L4 63 · L5 35–47 · L6 28 · L7 6.
+ *   L1 150 · L2 109 · L3 73 · L4 31 · L5 17 · L6 14 · L7 6.
  * Lichess players (our sample): ~950 → 100, ~1250 → 77, ~1550 → 67, ~1850 → 55, ~2200 → 45.
- * At L5–L6 the depth-10 yardstick under-measures errors of a similarly deep search, so their
- * true ACPL is higher than shown; treat 1900/2200 as rough.
+ * 2026-11-23: after user feedback that the upper levels played too weakly, L4 ("1600") was made
+ * to play like the former 1900 level and L5 ("1900") like 2100–2200; L6 is stronger again.
+ * At L4–L6 the depth-10 yardstick under-measures errors of a similarly deep search.
  */
 export interface CoachLevel {
   level: number;
@@ -461,9 +462,9 @@ export const COACH_LEVELS: CoachLevel[] = [
   { level: 1, targetRating: 700, depth: 2, multipv: 0, temperature: 150, blindness: 0.1, label: { ar: 'مبتدئ', en: 'Beginner' } },
   { level: 2, targetRating: 1000, depth: 3, multipv: 0, temperature: 110, blindness: 0.08, label: { ar: 'مبتدئ+', en: 'Novice' } },
   { level: 3, targetRating: 1300, depth: 4, multipv: 16, temperature: 95, blindness: 0.03, label: { ar: 'هاوٍ', en: 'Casual' } },
-  { level: 4, targetRating: 1600, depth: 6, multipv: 10, temperature: 75, blindness: 0.01, label: { ar: 'نادي', en: 'Club' } },
-  { level: 5, targetRating: 1900, depth: 8, multipv: 8, temperature: 70, blindness: 0, label: { ar: 'متقدم', en: 'Advanced' } },
-  { level: 6, targetRating: 2200, depth: 10, multipv: 8, temperature: 50, blindness: 0, label: { ar: 'خبير', en: 'Expert' } },
+  { level: 4, targetRating: 1600, depth: 9, multipv: 6, temperature: 55, blindness: 0, label: { ar: 'نادي', en: 'Club' } },
+  { level: 5, targetRating: 1900, depth: 11, multipv: 6, temperature: 38, blindness: 0, label: { ar: 'متقدم', en: 'Advanced' } },
+  { level: 6, targetRating: 2200, depth: 12, multipv: 5, temperature: 22, blindness: 0, label: { ar: 'خبير', en: 'Expert' } },
   { level: 7, targetRating: 0, depth: 13, multipv: 4, temperature: 6, blindness: 0, label: { ar: 'أقصى قوة', en: 'Full strength' } },
 ];
 export const coachLevel = (n: number) => COACH_LEVELS[Math.min(Math.max(Math.round(n), 1), COACH_LEVELS.length) - 1];
