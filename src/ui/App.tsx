@@ -43,7 +43,8 @@ export function App() {
       // v2: the redesigned green board and bold pieces become the default once
       if (!stored.v || stored.v < 2) { s.boardTheme = 'green'; s.pieceSet = 'chessnut'; }
       // v3: analysis depth 12 = the depth the classification models were calibrated at
-      if (!stored.v || stored.v < 3) { s.analysisDepth = 12; s.analysisMoveTimeMs = 2000; s.v = 3; await setSetting('settings', s); }
+      // v4: deeper full analysis (depth 18, ≤3 s per position) so evaluations are closer to Lichess/Chess.com
+      if (!stored.v || stored.v < 4) { s.analysisDepth = 18; s.analysisMoveTimeMs = 3000; s.v = 4; await setSetting('settings', s); }
       setSettingsState(s);
       setProfile(await ensureProfile(translator(s.lang)('defaultName')));
     })();

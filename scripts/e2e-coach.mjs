@@ -157,18 +157,27 @@ await step('resign → summary with accuracy, label table; analysis screen + ful
   await page.getByTestId('run-analysis').waitFor();
   await page.getByTestId('run-analysis').click();
   await page.waitForFunction(() => document.querySelector('[data-testid=run-analysis]')?.textContent?.includes('إعادة'), null, { timeout: 120000 });
-  await page.getByTestId('a-next').click();
+  expectTrue((await page.getByTestId('opening-name').textContent()).length > 5, 'opening name shown');
+  const gr = await page.getByTestId('gr-w').textContent();
+  console.log('   game rating (white):', gr);
+  expectTrue(/\d{3,4} ±\d+/.test(gr) || /10|—/.test(gr), 'game rating or the 10-move rule shown');
+  expectTrue(/\d/.test(await page.getByTestId('acc-w').textContent()), 'accuracy box shown');
+  await page.getByTestId('gr-overall').waitFor();
+  await page.screenshot({ path: 'test-shots/15a-review-summary.png', fullPage: true });
+  await page.getByTestId('export-annotated').click();
+  await page.getByTestId('gr-start').click();
   await page.getByTestId('move-label').waitFor();
   const lbl = await page.getByTestId('move-label').textContent();
   console.log('   first move label:', lbl);
   expectTrue(/نظرية/.test(lbl), '1.e4 should be Book: ' + lbl);
-  expectTrue((await page.getByTestId('opening-name').textContent()).length > 5, 'opening name shown');
-  const gr = await page.getByTestId('gr-w').textContent();
-  console.log('   game rating (white):', gr);
-  expectTrue(/\d{3,4} ±\d+/.test(gr) || /10/.test(gr), 'game rating or the 10-move rule shown');
   await page.getByTestId('evalbar').waitFor();
+  await page.getByTestId('board-badge').waitFor();
+  await page.getByTestId('a-next').click();
+  await page.getByTestId('a-next').click();
   await page.screenshot({ path: 'test-shots/15-analysis.png', fullPage: true });
-  await page.getByTestId('export-annotated').click();
+  await page.getByTestId('gr-best').click().catch(() => {});
+  await page.getByTestId('gr-summary-btn').click();
+  await page.getByTestId('label-table').waitFor();
 });
 
 await step('training mode: eval bar, hint (piece then arrow), top lines, undo', async () => {

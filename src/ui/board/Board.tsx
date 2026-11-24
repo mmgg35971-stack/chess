@@ -30,6 +30,8 @@ export interface BoardProps {
   /** slide duration for moved pieces; 0 disables animation */
   animationMs?: number;
   label?: string;
+  /** a round badge in the top corner of a square (move classification in the game review) */
+  badge?: { sq: Square; color: string; text: string } | null;
 }
 
 const FILES = 'abcdefgh';
@@ -278,6 +280,16 @@ export function Board(p: BoardProps) {
             );
           })}
         {arrowEls}
+        {p.badge && (() => {
+          const { x, y } = xy(p.badge.sq);
+          const cx = Math.min(x + S - 6, 800 - 26), cy = Math.max(y + 6, 26);
+          return (
+            <g data-testid="board-badge" pointerEvents="none">
+              <circle cx={cx} cy={cy} r={25} fill={p.badge.color} stroke="#ffffff" strokeWidth={4} />
+              <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="central" fontSize={p.badge.text.length > 1 ? 24 : 30} fontWeight="900" fill="#ffffff" fontFamily="system-ui, sans-serif">{p.badge.text}</text>
+            </g>
+          );
+        })()}
         {drag?.moved && pieceAt(drag.from) && (
           <image href={pieceHref(pieceAt(drag.from)!.code)} x={drag.x - S * 0.6} y={drag.y - S * 0.8} width={S * 1.2} height={S * 1.2} pointerEvents="none" />
         )}

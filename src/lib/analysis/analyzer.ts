@@ -6,6 +6,7 @@ import { classify, gameAccuracy, LABEL_ORDER, STRICTNESS, type MoveLabel, type T
 import { gamePhase, moveFeatures, type MoveFeatures } from './features';
 import { bookPlies } from './book';
 import { estimateRatings } from './gameRating';
+import { lichessAccuracy } from './accuracy';
 
 export interface MoveEval {
   ply: number; // 1-based
@@ -164,6 +165,13 @@ export function summarize(evals: MoveEval[]): Record<'w' | 'b', SideSummary> {
       if (['mistake', 'blunder', 'missedWin'].includes(e.label)) ph.errors++;
     }
     out[c].accuracy = gameAccuracy(mine.map((e) => e.accuracy));
+  }
+  // Accuracy as Lichess computes it (win% + volatility weights), when every ply is evaluated
+  const sorted = [...evals].sort((a, b) => a.ply - b.ply);
+  if (sorted.length && sorted.every((e, i) => e.ply === sorted[0].ply + i)) {
+    const acc = lichessAccuracy(sorted.map((e) => e.playedScore), sorted[0].color);
+    if (acc.w !== null) out.w.accuracy = acc.w;
+    if (acc.b !== null) out.b.accuracy = acc.b;
   }
   return out;
 }

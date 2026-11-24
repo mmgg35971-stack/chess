@@ -60,11 +60,11 @@ await step('a two-game PGN: pick the second game, play it as Black, and the full
   await page.getByText('الأسود', { exact: true }).last().click();
   await page.screenshot({ path: 'test-shots/50-analyze-pgn.png', fullPage: true });
   await page.getByTestId('apg-go').click();
-  await page.getByTestId('a-moves').waitFor({ timeout: 20000 });
   await page.getByTestId('game-ratings').waitFor({ timeout: 120000 });
   const op = await page.getByTestId('opening-name').innerText();
   expectTrue(/C4\d|Philidor|King/.test(op), 'opening: ' + op);
-  await page.getByTestId('a-next').click();
+  await page.getByTestId('gr-start').click();
+  await page.getByTestId('a-moves').waitFor({ timeout: 20000 });
   await page.getByTestId('move-label').waitFor();
   const board = await page.locator('svg.board').first().boundingBox();
   const shot = await page.locator('svg.board').first().getAttribute('data-orientation');
